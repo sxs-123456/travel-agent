@@ -1,0 +1,9 @@
+# RAG 模块的可选依赖（不装不影响行程规划主流程）。
+# 安装：pip install -r requirements-rag.txt
+# 国内加速：先设置 HF_ENDPOINT=https://hf-mirror.com 再安装/运行
+#
+# 说明：
+# - sentence-transformers：本地中文向量模型（BAAI/bge-small-zh-v1.5），含 torch；
+# - numpy：轻量向量库（余弦检索）的底层，纯 Python、全平台有 wheel。
+sentence-transformers>=2.7,<4
+numpy>=1.26,<3

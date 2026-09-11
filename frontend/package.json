@@ -1,0 +1,25 @@
+{
+  "name": "trip-planner-frontend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "智能旅行助手前端：Vue3 + TypeScript + Vite + Ant Design Vue + 高德 JS API",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview --port 4173"
+  },
+  "dependencies": {
+    "ant-design-vue": "^4.2.6",
+    "dayjs": "^1.11.13",
+    "html2canvas": "^1.4.1",
+    "jspdf": "^2.5.2",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.5",
+    "vue-tsc": "^2.2.0"
+  }
+}
