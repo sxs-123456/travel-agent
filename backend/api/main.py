@@ -13,8 +13,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field, field_validator
 
+from backend.config import settings
+from backend.intent import TripIntentError, parse_trip_intent
 from backend.models.trip import TripPlan, TripPlanRequest
+from backend.observability import LlmUsageTracker, current_llm_usage_tracker
 from backend.planner import TripPlannerAgent
 from backend.tracing import request_id as current_request_id
 
@@ -64,6 +68,22 @@ async def trace_request(request, call_next):
 planner = TripPlannerAgent()
 
 
+class NaturalTripRequest(BaseModel):
+    query: str = Field(min_length=5, max_length=1000)
+
+    @field_validator("query")
+    @classmethod
+    def nonempty_query(cls, value: str) -> str:
+        if len(value.strip()) < 5:
+            raise ValueError("请用一句话描述目的地和日期")
+        return value.strip()
+
+
+class NaturalTripResponse(BaseModel):
+    request: TripPlanRequest
+    plan: TripPlan
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -80,6 +100,44 @@ def create_plan(request: TripPlanRequest) -> TripPlan:
         detail = (str(e) or e.__class__.__name__)[:200]
         status = 400 if isinstance(e, RuntimeError) else 502
         return JSONResponse(status_code=status, content={"detail": detail})
+
+
+@app.post("/api/trip-plan/from-text", response_model=NaturalTripResponse)
+def create_plan_from_text(payload: NaturalTripRequest) -> NaturalTripResponse | JSONResponse:
+    """Extract a natural-language request and run the existing planner."""
+    intent_tracker = LlmUsageTracker()
+    token = current_llm_usage_tracker.set(intent_tracker)
+    try:
+        request = parse_trip_intent(payload.query)
+    except TripIntentError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("旅行需求解析失败")
+        detail = str(exc)[:200] if isinstance(exc, RuntimeError) else "需求解析暂时不可用，请稍后重试。"
+        status = 400 if isinstance(exc, RuntimeError) else 502
+        return JSONResponse(status_code=status, content={"detail": detail})
+    finally:
+        current_llm_usage_tracker.reset(token)
+    result = create_plan(request)
+    if isinstance(result, JSONResponse):
+        return result
+    if result.generation_metrics:
+        intent_usage = intent_tracker.snapshot(
+            model=settings.llm_model,
+            input_cost_per_1m_usd=settings.llm_input_cost_per_1m_usd,
+            output_cost_per_1m_usd=settings.llm_output_cost_per_1m_usd,
+        )
+        metrics = result.generation_metrics
+        metrics.calls += intent_usage["calls"]
+        metrics.input_tokens += intent_usage["input_tokens"]
+        metrics.output_tokens += intent_usage["output_tokens"]
+        metrics.total_tokens += intent_usage["total_tokens"]
+        metrics.usage_available = metrics.usage_available or intent_usage["usage_available"]
+        if intent_usage["estimated_cost_usd"] is not None:
+            metrics.estimated_cost_usd = round(
+                (metrics.estimated_cost_usd or 0) + intent_usage["estimated_cost_usd"], 6
+            )
+    return NaturalTripResponse(request=request, plan=result)
 
 
 # ---------------------------------------------------------------------------

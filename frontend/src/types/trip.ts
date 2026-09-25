@@ -134,3 +134,8 @@ export interface TripPlanRequest {
   // 否则 Pydantic 接收时找不到该 key，默认置空 → 12306 车次被跳过。
   origin_city?: string;
 }
+
+export interface NaturalTripResponse {
+  request: TripPlanRequest;
+  plan: TripPlan;
+}

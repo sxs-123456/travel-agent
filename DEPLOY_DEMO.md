@@ -52,7 +52,7 @@ VITE_AMAP_SECURITY_CODE=可选的高德 JS API 安全码
 
 ## 3. 配置 CORS 并验证
 
-拿到静态托管域名后，回到后端环境变量，将 `CORS_ORIGINS` 设置为该域名，然后重新部署后端。访问前端公开地址提交一次短行程；同时确认后端 `/health` 返回成功。若浏览器控制台显示 CORS 错误，检查来源域名是否完全匹配（包括 `https`），并确认两端都已重新部署。
+拿到静态托管域名后，回到后端环境变量，将 `CORS_ORIGINS` 设置为该域名，然后重新部署后端。访问前端公开地址，输入包含目的地和出返程日期的一句话并生成行程；同时确认后端 `/health` 返回成功。前端调用 `/api/trip-plan/from-text`，由后端解析需求并复用原有规划工作流。若浏览器控制台显示 CORS 错误，检查来源域名是否完全匹配（包括 `https`），并确认两端都已重新部署。
 
 也可以先本地模拟分离部署：复制 `frontend/.env.example` 为 `frontend/.env.local`，填入后端地址，再运行 `cd frontend; npm ci; npm run build`。本地文件不会被 Git 跟踪。
 

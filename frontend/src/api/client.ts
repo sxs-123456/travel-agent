@@ -1,4 +1,4 @@
-import type { TripPlan, TripPlanRequest } from "@/types/trip";
+import type { NaturalTripResponse, TripPlan, TripPlanRequest } from "@/types/trip";
 
 const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/+$/, "");
 
@@ -13,6 +13,17 @@ export async function createTripPlan(req: TripPlanRequest): Promise<TripPlan> {
     throw new Error(await extractDetail(resp));
   }
   return (await resp.json()) as TripPlan;
+}
+
+/** Convert a sentence into a validated request and generate a plan. */
+export async function createTripPlanFromText(query: string): Promise<NaturalTripResponse> {
+  const resp = await fetch(`${API_BASE}/api/trip-plan/from-text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ query }),
+  });
+  if (!resp.ok) throw new Error(await extractDetail(resp));
+  return (await resp.json()) as NaturalTripResponse;
 }
 
 /** 从 FastAPI 错误响应中提取可读错误信息。422 的 detail 是错误数组，逐项取 msg 并拼接。 */

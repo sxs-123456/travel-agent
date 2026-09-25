@@ -110,7 +110,7 @@ function recomputeBudget() {
     </div>
 
     <!-- 主体网格 -->
-    <div class="tp-grid" style="margin-top: 16px; grid-template-columns: 300px 1fr; align-items: start">
+    <div class="tp-grid" style="margin-top: 16px; align-items: start">
       <!-- 左列：预算 + 车次选择（内部滚动） -->
       <div class="tp-left-col">
         <BudgetPanel :budget="editable.budget" />
@@ -283,5 +283,18 @@ function recomputeBudget() {
 .tp-timeline-scroll::-webkit-scrollbar-thumb:hover,
 .tp-map-block :deep(.tp-empty-map)::-webkit-scrollbar-thumb:hover {
   background: #bfbfbf;
+}
+@media (max-width: 900px) {
+  .tp-left-col,
+  .tp-right-col {
+    max-height: none;
+  }
+  .tp-rail-scroll,
+  .tp-timeline-scroll {
+    overflow-y: visible;
+  }
+  .tp-rail-scroll {
+    overflow-x: auto;
+  }
 }
 </style>
