@@ -135,6 +135,10 @@ def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
     with pytest.raises(intent.TripIntentError, match="返程日期"):
         intent.parse_trip_intent("十月一号从上海去北京")
 
+    chain.result = intent.TripIntent(city="北京", origin_city="上海")
+    with pytest.raises(intent.TripIntentError, match="请补充出发日期、返程日期"):
+        intent.parse_trip_intent("我想从上海去北京旅行")
+
     chain.result = intent.TripIntent(city="北京", start_date="2026-10-07", end_date="2026-10-01")
     with pytest.raises(intent.TripIntentError, match="返程日期不能早于出发日期"):
         intent.parse_trip_intent("十月七号到十月一号去北京")
