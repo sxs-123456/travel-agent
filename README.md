@@ -25,6 +25,7 @@
 - **延迟优化**：门票、路线、餐厅和市内交通受控并发；酒店按真实候选确定性排序，减少一次 LLM 调用。
 - **Pydantic 数据模型**：`Location → Attraction/Meal/Hotel → DayPlan → TripPlan`。
 - **Vue3 前端**：一句话输入 → 独立结果页 → 高德 JS API 地图（无 key 降级坐标列表）→ 逐日时间轴 → 预算明细 → 车次选择面板。
+- **首屏视频**：使用本地托管的中国喀斯特山景短片，素材来自 [Pexels](https://www.pexels.com/video/drone-view-of-misty-karst-mountains-in-china-38368356/)；背景渐变和插画在视频不可用时继续提供可读的首屏。
 - **分级故障处理**：核心规划依赖失败返回错误；图片、车次等辅助能力允许缺省，并通过说明标注。
 
 ## 技术栈

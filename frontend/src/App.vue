@@ -80,6 +80,9 @@ async function generate(query: string) {
 
     <main v-if="!showResult">
       <section id="planner" class="hero">
+        <video class="hero-video" autoplay muted loop playsinline preload="metadata" aria-hidden="true" tabindex="-1">
+          <source src="/hero-china-karst.mp4" type="video/mp4" />
+        </video>
         <div class="hero-atmosphere" aria-hidden="true">
           <div class="hero-glow"></div>
           <div class="hero-cloud hero-cloud-one"></div>
@@ -154,6 +157,6 @@ async function generate(query: string) {
       </div>
     </main>
 
-    <footer class="site-footer"><span>漫游<span class="site-brand-dot">.</span></span><p>把旅行想法，慢慢变成计划。</p><small>AI 生成内容和费用仅供规划参考，实际安排请以官方信息为准。</small></footer>
+    <footer class="site-footer"><span>漫游<span class="site-brand-dot">.</span></span><p>把旅行想法，慢慢变成计划。</p><small>AI 生成内容和费用仅供规划参考，实际安排请以官方信息为准。<a href="https://www.pexels.com/video/drone-view-of-misty-karst-mountains-in-china-38368356/" target="_blank" rel="noopener noreferrer">视频：Pexels</a></small></footer>
   </div>
 </template>
