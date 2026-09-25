@@ -80,7 +80,18 @@ const emit = defineEmits<{
             <span class="tp-muted" v-if="m.cuisine">· {{ m.cuisine }}</span>
           </span>
           <span>
-            <span class="tp-price">¥{{ m.price }}</span>
+            <span v-if="m.price > 0" class="tp-price">¥{{ m.price }}/人</span>
+            <span v-else class="tp-muted">人均待确认</span>
+            <span
+              v-if="m.source_id"
+              class="tp-tag"
+              style="margin-left: 5px; background: #f6ffed; color: #389e0d"
+            >高德 POI</span>
+            <span
+              v-else-if="m.price_is_estimated"
+              class="tp-tag"
+              style="margin-left: 5px"
+            >模型建议</span>
             <a-button type="text" danger size="small" @click="emit('remove-meal', di, mi)">移除</a-button>
           </span>
         </div>

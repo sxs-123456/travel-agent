@@ -5,18 +5,6 @@
 from __future__ import annotations
 
 import logging
-import sys
-from pathlib import Path
-
-# 允许以脚本方式直接运行本模块
-_ROOT_MARKERS = ("backend", "requirements.txt")
-_PROJECT_ROOT = Path(__file__).resolve().parent
-while (
-    not any((_PROJECT_ROOT / m).exists() for m in _ROOT_MARKERS)
-    and _PROJECT_ROOT.parent != _PROJECT_ROOT
-):
-    _PROJECT_ROOT = _PROJECT_ROOT.parent
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 import httpx
 
@@ -51,6 +39,7 @@ def _parse_pois(data: dict) -> list[dict]:
             except (ValueError, TypeError):
                 cost = 0
         results.append({
+            "source_id": poi.get("id") or "",
             "name": poi.get("name", ""),
             "location": Location(
                 longitude=lon, latitude=lat,
@@ -144,6 +133,38 @@ def weather(city: str, days: int = 1) -> list[WeatherInfo]:
             len(out), days,
         )
     return out
+
+
+def driving_route(origin: Location, destination: Location) -> dict[str, float | str]:
+    """查询两个高德坐标之间的真实驾车距离与预计时长。"""
+    if not settings.use_real_amap:
+        raise RuntimeError("未配置 AMAP_API_KEY，无法查询驾车路线。")
+
+    params = {
+        "key": settings.amap_api_key,
+        "origin": f"{origin.longitude},{origin.latitude}",
+        "destination": f"{destination.longitude},{destination.latitude}",
+        "strategy": "0",
+        "extensions": "base",
+    }
+    resp = httpx.get(f"{AMAP_V3}/direction/driving", params=params, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    paths = (data.get("route") or {}).get("paths") or []
+    if data.get("status") != "1" or not paths:
+        raise RuntimeError(
+            f"高德驾车路线查询失败：{data.get('info') or '未返回可用路径'}"
+        )
+    try:
+        distance_km = float(paths[0]["distance"]) / 1000
+        duration_min = float(paths[0]["duration"]) / 60
+    except (KeyError, TypeError, ValueError) as exc:
+        raise RuntimeError("高德驾车路线返回了无效的距离或时长") from exc
+    return {
+        "distance_km": round(distance_km, 1),
+        "duration_min": round(duration_min, 1),
+        "source": "amap_driving",
+    }
 
 
 # ---------------------------------------------------------------------------

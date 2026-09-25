@@ -2,25 +2,19 @@
 from __future__ import annotations
 
 import logging
-import sys
+import concurrent.futures as futures
 from datetime import date as _date
-from pathlib import Path
+from datetime import timedelta as _timedelta
+from math import asin, cos, radians, sin, sqrt
 
-# 允许以脚本方式直接运行本模块
-_ROOT_MARKERS = ("backend", "requirements.txt")
-_PROJECT_ROOT = Path(__file__).resolve().parent
-while (
-    not any((_PROJECT_ROOT / m).exists() for m in _ROOT_MARKERS)
-    and _PROJECT_ROOT.parent != _PROJECT_ROOT
-):
-    _PROJECT_ROOT = _PROJECT_ROOT.parent
-sys.path.insert(0, str(_PROJECT_ROOT))
+from pydantic import BaseModel, Field
 
 from backend.models.trip import (
     Attraction,
     Budget,
     DayPlan,
     Hotel,
+    Meal,
     TrainOption,
     TrainRecommendation,
     TrainSeat,
@@ -31,6 +25,8 @@ from backend.models.trip import (
 from backend.agents.base import get_llm, structured_chain
 from backend.config import settings
 from backend.rail_client import rail_client
+from backend.tools.amap import driving_route
+from backend.tools.restaurants import recommend_restaurants
 logger = logging.getLogger("trip-planner")
 
 _TRANSPORT_PER_DAY = {"经济": 50, "中等": 100, "豪华": 200}
@@ -57,8 +53,173 @@ def _same_scenic_area(a: str, b: str) -> bool:
     return False
 
 
+class MealDraft(BaseModel):
+    """模型可建议餐饮文本与参考人均，不生成未经地图核实的坐标。"""
+
+    name: str
+    price: int = Field(0, ge=0)
+    cuisine: str = ""
+
+
+class DayPlanDraft(BaseModel):
+    """LLM 输出的最小单日草稿；事实字段由后端恢复。"""
+
+    attraction_ids: list[str] = Field(default_factory=list)
+    meals: list[MealDraft] = Field(default_factory=list)
+    notes: str = ""
+
+
+class ItineraryDraft(BaseModel):
+    """规划模型接口：只表达逐日选择与建议，不重复生成事实字段。"""
+
+    days: list[DayPlanDraft] = Field(default_factory=list)
+
+
 class PlannerAgent:
     name = "PlannerAgent"
+
+    @staticmethod
+    def _materialize_draft(
+        request: TripPlanRequest,
+        draft: ItineraryDraft,
+        attractions: list[Attraction],
+        hotels: list[Hotel],
+    ) -> tuple[TripPlan, int]:
+        """把 ID 草稿恢复为完整行程，并返回被拒绝的未知 ID 数量。"""
+        by_id = {a.source_id: a for a in attractions if a.source_id}
+        rejected = 0
+        days: list[DayPlan] = []
+        start = _date.fromisoformat(request.start_date)
+        for index in range(request.total_days()):
+            draft_day = draft.days[index] if index < len(draft.days) else DayPlanDraft()
+            selected: list[Attraction] = []
+            seen_ids: set[str] = set()
+            for source_id in draft_day.attraction_ids:
+                source = by_id.get(source_id)
+                if source is None or source_id in seen_ids:
+                    rejected += 1
+                    continue
+                seen_ids.add(source_id)
+                selected.append(source.model_copy(deep=True))
+            current_date = (start + _timedelta(days=index)).isoformat()
+            hotel = (
+                hotels[0].model_copy(deep=True)
+                if hotels and current_date < request.end_date else None
+            )
+            days.append(DayPlan(
+                day=index + 1,
+                date=current_date,
+                attractions=selected,
+                meals=[Meal(
+                    name=meal.name,
+                    location=None,
+                    price=meal.price,
+                    cuisine=meal.cuisine,
+                ) for meal in draft_day.meals],
+                hotel=hotel,
+                notes=draft_day.notes,
+            ))
+        return TripPlan(
+            city=request.city,
+            start_date=request.start_date,
+            end_date=request.end_date,
+            days=days,
+        ), rejected
+
+    @staticmethod
+    def _repairable_draft_issues(
+        request: TripPlanRequest,
+        draft: ItineraryDraft,
+        plan: TripPlan,
+        rejected: int,
+    ) -> list[str]:
+        """返回值得让模型重做一次的结构问题。"""
+        issues = []
+        if len(draft.days) != request.total_days():
+            issues.append("day_count")
+        if rejected:
+            issues.append("unknown_or_duplicate_attraction_id")
+        if any(not day.attractions for day in plan.days):
+            issues.append("empty_day")
+        ids = [a.source_id for day in plan.days for a in day.attractions if a.source_id]
+        if len(ids) != len(set(ids)):
+            issues.append("duplicate_attraction_across_days")
+        return issues
+
+    @staticmethod
+    def _haversine_km(a, b) -> float:
+        """计算两点球面直线距离，避免为基础排序额外调用地图接口。"""
+        lon1, lat1, lon2, lat2 = map(radians, (
+            a.longitude, a.latitude, b.longitude, b.latitude,
+        ))
+        dlon, dlat = lon2 - lon1, lat2 - lat1
+        h = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+        return 2 * 6371.0088 * asin(sqrt(h))
+
+    @classmethod
+    def _optimize_routes(cls, plan: TripPlan) -> None:
+        """按最近邻排序每日景点，并记录可解释的直线距离基线。"""
+        for day in plan.days:
+            if not day.attractions:
+                day.route_distance_km = 0.0
+                continue
+            remaining = list(day.attractions)
+            ordered: list[Attraction] = []
+            if day.hotel:
+                current = day.hotel.location
+            else:
+                first = remaining.pop(0)
+                ordered.append(first)
+                current = first.location
+            total = 0.0
+            while remaining:
+                next_attr = min(
+                    remaining,
+                    key=lambda item: cls._haversine_km(current, item.location),
+                )
+                total += cls._haversine_km(current, next_attr.location)
+                ordered.append(next_attr)
+                remaining.remove(next_attr)
+                current = next_attr.location
+            if day.hotel and ordered:
+                total += cls._haversine_km(current, day.hotel.location)
+            day.attractions = ordered
+            day.route_distance_km = round(total, 1)
+
+    @staticmethod
+    def _enrich_driving_routes(plan: TripPlan) -> None:
+        """用高德驾车路线替换直线距离；接口失败时保留可解释的直线距离。"""
+        for day in plan.days:
+            locations = [a.location for a in day.attractions]
+            if day.hotel and locations:
+                locations = [day.hotel.location, *locations, day.hotel.location]
+
+            if settings.use_amap_driving_route and len(locations) >= 2:
+                try:
+                    pairs = list(zip(locations, locations[1:]))
+                    with futures.ThreadPoolExecutor(max_workers=min(4, len(pairs))) as executor:
+                        legs = list(executor.map(lambda pair: driving_route(*pair), pairs))
+                    day.route_distance_km = round(
+                        sum(float(leg["distance_km"]) for leg in legs), 1
+                    )
+                    day.route_duration_min = round(
+                        sum(float(leg["duration_min"]) for leg in legs), 1
+                    )
+                    day.route_distance_source = "amap_driving"
+                except Exception as exc:  # noqa: BLE001  单日路线失败可降级
+                    logger.warning("Day%d 高德驾车路线失败，回退直线距离：%s", day.day, exc)
+
+            if day.route_distance_source == "amap_driving":
+                route_note = (
+                    f"景点已按地理距离排序；高德驾车路线约 "
+                    f"{day.route_distance_km:.1f} 公里 / {day.route_duration_min:.0f} 分钟"
+                )
+            else:
+                route_note = (
+                    f"景点已按地理距离排序，直线距离约 {day.route_distance_km or 0:.1f} 公里"
+                    "（实际路程以地图导航为准）"
+                )
+            day.notes = (day.notes + "；" if day.notes else "") + route_note
 
     @staticmethod
     def _dedupe_attractions_across_days(plan: TripPlan) -> None:
@@ -78,6 +239,46 @@ class PlannerAgent:
                 kept.append(attr)
                 seen.append(name)
             day.attractions = kept
+
+    @staticmethod
+    def _fill_empty_days(plan: TripPlan, candidates: list[Attraction]) -> None:
+        """去重造成空日时，用尚未使用的真实候选 POI 确定性补位。"""
+        used_ids = {
+            attraction.source_id
+            for day in plan.days
+            for attraction in day.attractions
+            if attraction.source_id
+        }
+        used_names = [
+            _norm_name(attraction.name)
+            for day in plan.days
+            for attraction in day.attractions
+        ]
+        for day in plan.days:
+            if day.attractions:
+                continue
+            available = [
+                candidate for candidate in candidates
+                if candidate.source_id not in used_ids
+            ]
+            diverse = [
+                candidate for candidate in available
+                if not any(
+                    _same_scenic_area(_norm_name(candidate.name), used)
+                    for used in used_names
+                )
+            ]
+            for candidate in (diverse or available):
+                normalized = _norm_name(candidate.name)
+                day.attractions.append(candidate.model_copy(deep=True))
+                if candidate.source_id:
+                    used_ids.add(candidate.source_id)
+                used_names.append(normalized)
+                day.notes = (
+                    (day.notes + "；" if day.notes else "")
+                    + "模型去重后由系统从已验证 POI 候选中补充景点"
+                )
+                break
 
     @staticmethod
     def _strip_return_day_hotel(plan: TripPlan, request: TripPlanRequest) -> None:
@@ -168,7 +369,8 @@ class PlannerAgent:
     # ----- 真实模式：LLM 结构化生成 -----
     def _build_with_llm(self, request, attractions, weather, hotels) -> TripPlan:
         attr_text = "\n".join(
-            f"  - {a.name}（门票¥{a.ticket_price}，坐标 {a.location.longitude},{a.location.latitude}）"
+            f"  - [{a.source_id}] {a.name}（门票¥{a.ticket_price}，坐标 "
+            f"{a.location.longitude},{a.location.latitude}）"
             for a in attractions
         )
         hotel_text = "\n".join(
@@ -184,28 +386,42 @@ class PlannerAgent:
         except ValueError:
             total_days = 1
         prompt = (
-            f"你是资深旅行规划师。请为以下信息生成逐日行程与预算。\n"
+            f"你是资深旅行规划师。请生成最小行程草稿。\n"
             f"请求：{request.model_dump_json()}\n"
             f"候选景点（共 {len(attractions)} 个，均为不同景区）：\n{attr_text}\n"
             f"候选酒店：\n{hotel_text}\n"
             f"天气：\n{w_text}\n\n"
             f"要求：\n"
-            f"1. 共 {max(total_days, 1)} 天，每天安排 2-3 个景点；\n"
-            f"2. 【防重复】每天必须去**不同的景区**，任何景点（含同一景区的子景点）"
+            f"1. days 必须恰好有 {max(total_days, 1)} 项，每项代表连续一天；\n"
+            f"2. 每天安排 2-3 个景点，只把候选方括号中的 ID 填入 attraction_ids；\n"
+            f"3. 【防重复】每天必须去**不同的景区**，任何景点（含同一景区的子景点）"
             f"在整个行程中只能出现一次——严禁把同一景区排进多天；\n"
-            f"3. 每天含午餐；把相邻/顺路的景点排到同一天；\n"
-            f"4. 酒店只填在需要过夜的晚上：{max(total_days, 1)} 天行程 = "
-            f"{max(total_days - 1, 0)} 晚，所有晚上住**同一家**酒店，"
-            f"**最后一天（返程日）不填 hotel（置 null）**；\n"
-            f"5. 输出严格符合 TripPlan 结构（无需填写 budget 与 weather_info，"
-            f"系统将用真实数据补全）。"
+            f"4. 每天含午餐建议；把相邻/顺路的景点排到同一天；\n"
+            f"5. 不输出城市、日期、酒店、坐标、门票、预算或天气，这些由系统补全。"
         )
         llm = get_llm(temperature=0.2)
-        plan = structured_chain(llm, TripPlan).invoke(prompt)
+        chain = structured_chain(llm, ItineraryDraft)
+        draft: ItineraryDraft = chain.invoke(prompt)
+        plan, rejected = self._materialize_draft(request, draft, attractions, hotels)
+        issues = self._repairable_draft_issues(request, draft, plan, rejected)
+        if issues:
+            logger.info("规划草稿触发一次受控修复：%s", issues)
+            repair_prompt = (
+                prompt
+                + "\n上一次草稿存在这些问题："
+                + "、".join(issues)
+                + "。请重新生成完整草稿；这是唯一一次修复机会。"
+            )
+            draft = chain.invoke(repair_prompt)
+            plan, rejected = self._materialize_draft(request, draft, attractions, hotels)
+            remaining = self._repairable_draft_issues(request, draft, plan, rejected)
+            if remaining:
+                logger.warning("规划草稿修复后仍有问题：%s", remaining)
 
         # 后处理：跨天景点去重（LLM 偶发违规，同名或同一景区子景点视为重复，
         # 只保留首次出现，保证「每天不同景区」的体验）。
         self._dedupe_attractions_across_days(plan)
+        self._fill_empty_days(plan, attractions)
 
         # 后处理：酒店只出现在「过夜的晚上」。N 天行程 = N-1 晚，返程当天不住店；
         # 把返程日（及之后）的 hotel 置空，避免时间轴显示「多订一晚」。
@@ -214,6 +430,16 @@ class PlannerAgent:
         # 酒店：多晚住同一家（hotels[0] 已是高德真实候选 + 参考价 + 档次/评分），
         # 统一替换所有过夜日的 hotel，并覆盖 LLM 可能臆造/改写的名称与价格。
         hotel = self._apply_single_hotel(plan, hotels)
+
+        # 最近邻排序后用高德驾车路线补充真实道路距离与时长；接口失败自动回退直线距离。
+        self._optimize_routes(plan)
+        self._enrich_driving_routes(plan)
+
+        # 用每日中段景点附近的高德真实餐厅覆盖模型餐饮建议；查询失败时保留原建议。
+        for day_number, meal in recommend_restaurants(plan.days).items():
+            day = next((item for item in plan.days if item.day == day_number), None)
+            if day is not None:
+                day.meals = [meal]
 
         # 城际交通：USE_RAIL_MCP 且提供出发城市时，用 12306 官方直连的真实往返票价，
         # 并生成「车次选择推荐」（候选车次列表 + 推荐班次 + 推荐理由）。
@@ -277,7 +503,7 @@ class PlannerAgent:
                 raise RuntimeError(f"12306 未返回{direction}的可用车次")
             # 候选只取前 _MAX_DISPLAY 条（12306 返回的车次通常很多，前端没必要全展示）；
             # 若推荐车次不在前 _MAX_DISPLAY 内，单独给它补一次票价并插到第 1 位。
-            display_trains = PlannerAgent._pick_display_trains(trains, best, _MAX_DISPLAY)
+            display_trains = PlannerAgent._pick_display_trains(trains, best, _MAX_DISPLAY, date=date)
             # 候选车次统一裁剪字段，避免把内部字段（train_code 等）透传给前端。
             candidates: list[TrainOption] = []
             for t in display_trains:
@@ -319,10 +545,10 @@ class PlannerAgent:
         return recs
 
     @staticmethod
-    def _pick_display_trains(trains: list[dict], best: dict, max_display: int = 10) -> list[dict]:
+    def _pick_display_trains(trains: list[dict], best: dict, max_display: int = 10, date: str = "") -> list[dict]:
         """从 trains 里选最多 max_display 条展示，保证推荐车次在第 1 位。
 
-        - 若 best 已在前 max_display 条：直接返回前 max_display 条；
+        - 若 best 已在前 max_display 条：移到首位，其余候选保持顺序；
         - 若不在：单独给 best 补一次真实票价（否则前 10 都没补到 best，价格空缺），
           并把 best 插入第 1 位，整体仍保持 max_display 条。
 
@@ -330,8 +556,8 @@ class PlannerAgent:
         """
         display = list(trains[:max_display])
         if any(t.get("train_no") == best.get("train_no") for t in display):
-            return display
-        best_with_prices = PlannerAgent._ensure_train_prices(best, "")
+            return [best] + [t for t in display if t.get("train_no") != best.get("train_no")]
+        best_with_prices = PlannerAgent._ensure_train_prices(best, date)
         # 原 best 已在 trains 里（recommend 从全集选），用更新过票价的版本替换
         merged = [best_with_prices] + display[: max_display - 1]
         return merged
@@ -368,19 +594,24 @@ class PlannerAgent:
         from backend.tools.taxi import BaiduRideProvider
 
         provider = BaiduRideProvider()
-        total = 0.0
-        for day in days:
-            if not day.attractions:
-                continue
+        active_days = [day for day in days if day.attractions]
+        if not active_days:
+            return None
+
+        def estimate(day: DayPlan) -> float:
             first = day.attractions[0]
-            try:
-                fare = provider.estimate_ride_by_coords(
-                    hotel.location.latitude, hotel.location.longitude,
-                    first.location.latitude, first.location.longitude,
-                    start_label="酒店", end_label=first.name,
-                )["estimated_fare"]
-                total += float(fare) * 2  # 往返
-            except Exception as e:
-                logger.warning("市内打车估算失败，回退按天估算：%s", e)
-                return None
+            result = provider.estimate_ride_by_coords(
+                hotel.location.latitude, hotel.location.longitude,
+                first.location.latitude, first.location.longitude,
+                start_label="酒店", end_label=first.name,
+            )
+            return float(result["estimated_fare"]) * 2
+
+        try:
+            with futures.ThreadPoolExecutor(max_workers=min(4, len(active_days))) as executor:
+                fares = list(executor.map(estimate, active_days))
+            total = sum(fares)
+        except Exception as e:
+            logger.warning("市内打车估算失败，回退按天估算：%s", e)
+            return None
         return int(total) if total > 0 else None

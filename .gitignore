@@ -19,6 +19,7 @@ env/
 !.env.example
 frontend/.env
 frontend/.env.*
+!frontend/.env.example
 
 # ---- 前端构建产物 ----
 frontend/dist/
@@ -29,9 +30,9 @@ node_modules/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
-# ---- RAG 向量库落盘数据（可重建，不入库）----
-.vectordb/
+evals/results/*
+!evals/results/latest.json
+!evals/results/regression-luoyang.json
 
 # ---- 编辑器 / 系统 ----
 .idea/

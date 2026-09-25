@@ -4,6 +4,7 @@ Agent 内部通过 `from backend.xxx import y` 绑定了名称，因此 monkeypa
 各 agent 模块自身的命名空间；LLM 与高德网络均用桩对象替换，覆盖真实代码路径。
 """
 import pytest
+from pydantic import BaseModel, Field
 
 from backend.models.trip import (
     Attraction,
@@ -16,16 +17,22 @@ from backend.models.trip import (
     TripPlanRequest,
     WeatherInfo,
 )
-from backend.agents.attraction import AttractionList, AttractionSearchAgent
-from backend.agents.hotel import HotelList, HotelAgent
+from backend.agents.attraction import AttractionSearchAgent, AttractionSelection
+from backend.agents.hotel import HotelAgent
 from backend.agents.weather import WeatherQueryAgent
-from backend.agents.planner import PlannerAgent
+from backend.agents.planner import DayPlanDraft, ItineraryDraft, PlannerAgent
 from backend.agents.base import structured_chain
 
 import backend.agents.attraction as m_attr
 import backend.agents.hotel as m_hotel
 import backend.agents.weather as m_weather
 import backend.agents.planner as m_planner
+
+
+class _AttractionList(BaseModel):
+    """测试 structured_chain 对嵌套列表 schema 的通用兼容性。"""
+
+    items: list[Attraction] = Field(default_factory=list)
 
 
 # ----- 桩：高德工具 --------------------------------------------------------
@@ -81,21 +88,22 @@ class FakeStructured:
 
     def invoke(self, prompt):
         name = self.model_cls.__name__
-        if name == "AttractionList":
-            return AttractionList(items=[
+        if name == "_AttractionList":
+            return _AttractionList(items=[
                 Attraction(name="西湖", location=Location(longitude=120.1, latitude=30.2),
                            ticket_price=0, description="世界文化遗产"),
                 Attraction(name="灵隐寺", location=Location(longitude=120.1, latitude=30.2),
                            ticket_price=75, description="千年古刹"),
             ])
-        if name == "HotelList":
-            return HotelList(items=[
-                Hotel(name="杭州某酒店", location=Location(longitude=120.1, latitude=30.2),
-                      price_per_night=360, star_rating=4.6, level="舒适型",
-                      price_source="参考估算（免费接口无真实房价，按档次/评分粗算，以携程/美团实际为准）"),
-            ])
+        if name == "AttractionSelection":
+            return AttractionSelection(source_ids=["candidate-01", "candidate-02"])
         if name == "TripPlan":
             return _sample_plan()
+        if name == "ItineraryDraft":
+            return ItineraryDraft(days=[
+                DayPlanDraft(attraction_ids=["candidate-01"]),
+                DayPlanDraft(attraction_ids=["candidate-02"]),
+            ])
         raise AssertionError(f"未预期的模型：{name}")
 
 
@@ -114,9 +122,9 @@ def patched(monkeypatch):
         lambda name: (60, "60元旺季/40元淡季"),
     )
     monkeypatch.setattr(m_hotel, "hotel_search", _fake_hotel_search)
-    monkeypatch.setattr(m_hotel, "get_llm", lambda *a, **k: FakeLLM())
     monkeypatch.setattr(m_weather, "weather", _fake_weather)
     monkeypatch.setattr(m_planner, "get_llm", lambda *a, **k: FakeLLM())
+    monkeypatch.setattr(m_planner, "recommend_restaurants", lambda days: {})
 
 
 def _req() -> TripPlanRequest:
@@ -139,6 +147,28 @@ def test_attraction_agent(patched):
     assert out[0].ticket_price_note == "60元旺季/40元淡季"
     # 封面图不再由本 Agent 填充，统一由 planner._enrich_images 用 Pexels/Openverse 补
     assert all(a.image_url is None for a in out)
+
+
+def test_attraction_agent_augments_narrow_llm_selection(monkeypatch):
+    raw = [
+        {"source_id": f"poi-{index}", "name": name,
+         "location": Location(longitude=120 + index / 100, latitude=30),
+         "description": "景点"}
+        for index, name in enumerate(["西湖", "灵隐寺", "西溪湿地", "良渚古城"], 1)
+    ]
+    monkeypatch.setattr(m_attr, "text_search", lambda *args: raw)
+    monkeypatch.setattr(m_attr, "get_llm", lambda *args, **kwargs: FakeLLM())
+    monkeypatch.setattr(
+        m_attr,
+        "structured_chain",
+        lambda *args: type("Chain", (), {
+            "invoke": lambda self, prompt: AttractionSelection(source_ids=["poi-1"])
+        })(),
+    )
+    monkeypatch.setattr(m_attr, "query_baike_card", lambda name: (None, None))
+    result = AttractionSearchAgent().run(_req())
+    assert len(result) == 4
+    assert {item.source_id for item in result} == {"poi-1", "poi-2", "poi-3", "poi-4"}
 
 
 def test_weather_agent(patched):
@@ -194,9 +224,9 @@ class _FallbackLLM:
 
 
 def test_structured_chain_fallback_to_json_mode():
-    chain = structured_chain(_FallbackLLM(), AttractionList)
+    chain = structured_chain(_FallbackLLM(), _AttractionList)
     out = chain.invoke("忽略此提示")
-    assert isinstance(out, AttractionList)
+    assert isinstance(out, _AttractionList)
     assert out.items
 
 
@@ -223,9 +253,9 @@ def test_structured_chain_retries_on_missing_required_field():
                 return _FcMissing()
             return _JmOK(schema)
 
-    chain = structured_chain(_RetryingLLM(), AttractionList)
+    chain = structured_chain(_RetryingLLM(), _AttractionList)
     out = chain.invoke("生成景点")
-    assert isinstance(out, AttractionList)
+    assert isinstance(out, _AttractionList)
     assert out.items
 
 
@@ -544,7 +574,7 @@ def _mk_train(code: str, with_price: bool = True) -> dict:
 
 
 def test_pick_display_trains_best_in_first_10(monkeypatch):
-    """推荐车次已在 trains 前 10 条内：直接返回前 10 条，不重复补票价。"""
+    """推荐车次已在前 10 条内：置顶且不重复补票价。"""
     from backend.agents.planner import PlannerAgent
 
     # 防御：best 在前 10 时不应调 _ensure_train_prices
@@ -561,7 +591,7 @@ def test_pick_display_trains_best_in_first_10(monkeypatch):
     best = trains[3]  # 在前 10
     out = PlannerAgent._pick_display_trains(trains, best, max_display=10)
     assert len(out) == 10
-    assert out[0]["train_no"] == "G00"
+    assert out[0]["train_no"] == "G03"
     assert called["n"] == 0  # 没补票价
 
 

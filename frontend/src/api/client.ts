@@ -1,7 +1,6 @@
 import type { TripPlan, TripPlanRequest } from "@/types/trip";
-import type { RagQueryResponse } from "@/types/rag";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "";
+const API_BASE = (import.meta.env.VITE_API_BASE || "").replace(/\/+$/, "");
 
 /** 调用后端 /api/trip-plan，返回完整的多智能体规划结果。 */
 export async function createTripPlan(req: TripPlanRequest): Promise<TripPlan> {
@@ -14,22 +13,6 @@ export async function createTripPlan(req: TripPlanRequest): Promise<TripPlan> {
     throw new Error(await extractDetail(resp));
   }
   return (await resp.json()) as TripPlan;
-}
-
-/** 调用后端 /api/rag/query，返回带引用来源的知识库问答结果。 */
-export async function queryKnowledge(
-  question: string,
-  topK = 4
-): Promise<RagQueryResponse> {
-  const resp = await fetch(`${API_BASE}/api/rag/query`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question, top_k: topK }),
-  });
-  if (!resp.ok) {
-    throw new Error(await extractDetail(resp));
-  }
-  return (await resp.json()) as RagQueryResponse;
 }
 
 /** 从 FastAPI 错误响应中提取可读错误信息。422 的 detail 是错误数组，逐项取 msg 并拼接。 */

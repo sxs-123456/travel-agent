@@ -5,20 +5,9 @@
 from __future__ import annotations
 
 import re
-import sys
-from pathlib import Path
-
-# 允许以脚本方式直接运行本模块
-_ROOT_MARKERS = ("backend", "requirements.txt")
-_PROJECT_ROOT = Path(__file__).resolve().parent
-while (
-    not any((_PROJECT_ROOT / m).exists() for m in _ROOT_MARKERS)
-    and _PROJECT_ROOT.parent != _PROJECT_ROOT
-):
-    _PROJECT_ROOT = _PROJECT_ROOT.parent
-sys.path.insert(0, str(_PROJECT_ROOT))
 
 from backend.config import settings
+from backend.observability import current_llm_usage_tracker
 
 
 def get_llm(temperature: float = 0.3):
@@ -33,11 +22,17 @@ def get_llm(temperature: float = 0.3):
         )
     from langchain_openai import ChatOpenAI
 
+    kwargs = {}
+    tracker = current_llm_usage_tracker.get()
+    if tracker is not None:
+        kwargs["callbacks"] = [tracker]
+
     return ChatOpenAI(
         api_key=settings.llm_api_key,
         base_url=settings.llm_base_url,
         model=settings.llm_model,
         temperature=temperature,
+        **kwargs,
     )
 
 
@@ -193,7 +188,7 @@ def structured_chain(llm, schema):
             # function_calling 偶发返回 None（工具未被触发）或非 schema 实例
             # （漏字段/校验失败被静默吞掉）：用 json_mode 兜底重试一次
             if out is None or not isinstance(out, schema):
-                return self._fallback_json(prompt, **kwargs)
+                return self._fallback_json(_strengthen_prompt(prompt), **kwargs)
             return out
 
     return _Chain()

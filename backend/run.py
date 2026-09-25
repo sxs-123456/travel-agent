@@ -7,12 +7,17 @@
 - 热重载：RELOAD=1 开启（仅开发用；默认关闭，避免 reload 父进程持有端口导致
   进程结束后端口仍被占用、以及代码改动被旧进程继续服务的问题）
 """
+import logging
 import argparse
 import os
 
 import uvicorn
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+    # httpx 的 INFO 日志会打印含 key/ak 的完整查询 URL；生产日志仅保留警告。
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("httpcore").setLevel(logging.WARNING)
     parser = argparse.ArgumentParser(description="启动 trip-planner-agent 后端服务")
     parser.add_argument("--host", default=None, help="监听地址，默认 127.0.0.1（可用 HOST 环境变量覆盖）")
     parser.add_argument("--port", type=int, default=None, help="监听端口，默认 8000（可用 PORT 环境变量覆盖）")

@@ -1,0 +1,14 @@
+[
+  {"name": "杭州两日自然", "city": "杭州", "origin_city": "上海", "duration_days": 2, "preferences": "自然风光", "budget_level": "中等", "travelers": 2},
+  {"name": "北京三日人文", "city": "北京", "origin_city": "天津", "duration_days": 3, "preferences": "历史文化、博物馆", "budget_level": "中等", "travelers": 1},
+  {"name": "上海同日城市游", "city": "上海", "origin_city": "苏州", "duration_days": 1, "preferences": "城市建筑、美食", "budget_level": "经济", "travelers": 1},
+  {"name": "成都四日多人游", "city": "成都", "origin_city": "重庆", "duration_days": 4, "preferences": "美食、历史文化", "budget_level": "中等", "travelers": 4},
+  {"name": "西安三日低预算", "city": "西安", "origin_city": "郑州", "duration_days": 3, "preferences": "历史遗迹", "budget_level": "经济", "travelers": 2},
+  {"name": "三亚两日度假", "city": "三亚", "origin_city": "广州", "duration_days": 2, "preferences": "海滨、休闲", "budget_level": "豪华", "travelers": 2},
+  {"name": "南京两日亲子", "city": "南京", "origin_city": "合肥", "duration_days": 2, "preferences": "亲子、科普", "budget_level": "中等", "travelers": 3},
+  {"name": "苏州三日园林", "city": "苏州", "origin_city": "上海", "duration_days": 3, "preferences": "园林、古镇", "budget_level": "中等", "travelers": 2},
+  {"name": "厦门两日摄影", "city": "厦门", "origin_city": "福州", "duration_days": 2, "preferences": "摄影、海滨", "budget_level": "经济", "travelers": 1},
+  {"name": "重庆三日城市游", "city": "重庆", "origin_city": "成都", "duration_days": 3, "preferences": "城市景观、美食", "budget_level": "中等", "travelers": 2},
+  {"name": "青岛两日家庭游", "city": "青岛", "origin_city": "济南", "duration_days": 2, "preferences": "海滨、亲子", "budget_level": "中等", "travelers": 3},
+  {"name": "洛阳四日文化游", "city": "洛阳", "origin_city": "郑州", "duration_days": 4, "preferences": "历史文化、石窟", "budget_level": "经济", "travelers": 2}
+]

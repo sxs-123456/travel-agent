@@ -1,0 +1,46 @@
+{
+  "summary": {
+    "total_cases": 1,
+    "successful_cases": 1,
+    "success_rate": 1.0,
+    "quality_pass_rate": 1.0,
+    "latency_ms": {
+      "p50": 27117.16,
+      "p95": 27117.16
+    },
+    "average_day_coverage": 1.0,
+    "average_weather_coverage": 1.0,
+    "issue_counts": {},
+    "llm_usage": {
+      "reported_cases": 1,
+      "calls": 2,
+      "input_tokens": 2641,
+      "output_tokens": 519,
+      "total_tokens": 3160,
+      "estimated_cost_usd": null
+    }
+  },
+  "records": [
+    {
+      "name": "洛阳四日文化游",
+      "success": true,
+      "latency_ms": 27117.16,
+      "request_id": "3f53bedbd3024b698609fc68e3e709c9",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2641,
+        "output_tokens": 519,
+        "total_tokens": 3160,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    }
+  ]
+}

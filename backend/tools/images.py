@@ -13,19 +13,6 @@
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-# 允许以脚本方式直接运行本模块
-_ROOT_MARKERS = ("backend", "requirements.txt")
-_PROJECT_ROOT = Path(__file__).resolve().parent
-while (
-    not any((_PROJECT_ROOT / m).exists() for m in _ROOT_MARKERS)
-    and _PROJECT_ROOT.parent != _PROJECT_ROOT
-):
-    _PROJECT_ROOT = _PROJECT_ROOT.parent
-sys.path.insert(0, str(_PROJECT_ROOT))
-
 import httpx
 
 from backend.config import settings

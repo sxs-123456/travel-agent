@@ -88,6 +88,7 @@ class WeatherInfo(BaseModel):
 class Attraction(BaseModel):
     """景点。"""
 
+    source_id: Optional[str] = Field(None, description="数据源中的稳定 POI ID")
     name: str = Field(..., description="景点名称")
     location: Location = Field(..., description="坐标")
     ticket_price: int = Field(0, ge=0, description="门票价格（元），0 表示免费或未知")
@@ -102,10 +103,15 @@ class Attraction(BaseModel):
 class Meal(BaseModel):
     """餐饮推荐。"""
 
+    source_id: Optional[str] = Field(None, description="餐厅数据源中的稳定 POI ID")
     name: str = Field(..., description="餐厅/美食名称")
-    location: Location = Field(..., description="坐标")
+    location: Optional[Location] = Field(
+        None, description="坐标；模型建议且未经地图核实时为空"
+    )
     price: int = Field(0, ge=0, description="人均消费（元）")
     cuisine: str = Field("", description="菜系，如 川菜/本地小吃")
+    price_source: Optional[str] = Field(None, description="人均消费的数据来源")
+    price_is_estimated: bool = Field(True, description="价格是否为模型建议或估算")
 
 
 class Hotel(BaseModel):
@@ -134,6 +140,15 @@ class DayPlan(BaseModel):
     attractions: List[Attraction] = Field(default_factory=list, description="当日景点")
     meals: List[Meal] = Field(default_factory=list, description="当日餐饮")
     hotel: Optional[Hotel] = Field(None, description="入住酒店")
+    route_distance_km: Optional[float] = Field(
+        None, ge=0, description="按实际游览顺序计算的路线距离（公里）"
+    )
+    route_duration_min: Optional[float] = Field(
+        None, ge=0, description="高德驾车路线预计时长（分钟）"
+    )
+    route_distance_source: str = Field(
+        "straight_line", description="距离来源：amap_driving 或 straight_line"
+    )
     notes: str = Field("", description="当日备注/路线提示")
 
 
@@ -218,6 +233,18 @@ class TrainRecommendation(BaseModel):
     )
 
 
+class GenerationMetrics(BaseModel):
+    """一次行程生成所消耗的大模型资源。"""
+
+    model: str
+    calls: int = Field(0, ge=0)
+    input_tokens: int = Field(0, ge=0)
+    output_tokens: int = Field(0, ge=0)
+    total_tokens: int = Field(0, ge=0)
+    estimated_cost_usd: Optional[float] = Field(None, ge=0)
+    usage_available: bool = False
+
+
 class TripPlan(BaseModel):
     """完整旅行计划（顶层模型）。"""
 
@@ -233,6 +260,9 @@ class TripPlan(BaseModel):
     train_note: Optional[str] = Field(
         None,
         description="车票功能状态说明：未填写出发城市 / 未启用 / 查询失败等原因；None 表示正常返回了车次",
+    )
+    generation_metrics: Optional[GenerationMetrics] = Field(
+        None, description="LLM 调用次数、token 与按配置单价估算的费用"
     )
 
     def summary(self) -> str:
@@ -260,6 +290,26 @@ class TripPlanRequest(BaseModel):
     budget_level: str = Field("中等", description="预算等级：经济/中等/豪华（决定酒店档次）")
     travelers: int = Field(1, ge=1, description="出行人数")
     origin_city: str = Field("", description="出发城市（用于 12306 真实票价，留空则用估算）")
+
+    @field_validator("city")
+    @classmethod
+    def check_city(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("目的地城市不能为空")
+        return v.strip()
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def check_calendar_date(cls, v: str) -> str:
+        from datetime import date
+
+        try:
+            parsed = date.fromisoformat(v)
+        except ValueError:
+            raise ValueError("日期必须是有效的 YYYY-MM-DD 日期") from None
+        if parsed.isoformat() != v:
+            raise ValueError("日期必须使用 YYYY-MM-DD 格式")
+        return v
 
     @field_validator("end_date")
     @classmethod

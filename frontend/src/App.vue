@@ -5,7 +5,6 @@ import type { TripPlan, TripPlanRequest } from "@/types/trip";
 import { createTripPlan } from "@/api/client";
 import PlanForm from "@/components/PlanForm.vue";
 import TripResult from "@/components/TripResult.vue";
-import KnowledgeQA from "@/components/KnowledgeQA.vue";
 
 const loading = ref(false);
 const plan = ref<TripPlan | null>(null);
@@ -52,6 +51,5 @@ function formatError(e: any, fallback: string): string {
       </div>
     </div>
 
-    <KnowledgeQA style="margin-top: 16px" />
   </div>
 </template>

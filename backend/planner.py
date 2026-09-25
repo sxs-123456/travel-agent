@@ -6,18 +6,8 @@ from __future__ import annotations
 
 import concurrent.futures as _futures
 import logging
-import sys
-from pathlib import Path
-
-# 允许以脚本方式直接运行本模块（如 python backend/planner.py）
-_ROOT_MARKERS = ("backend", "requirements.txt")
-_PROJECT_ROOT = Path(__file__).resolve().parent
-while (
-    not any((_PROJECT_ROOT / m).exists() for m in _ROOT_MARKERS)
-    and _PROJECT_ROOT.parent != _PROJECT_ROOT
-):
-    _PROJECT_ROOT = _PROJECT_ROOT.parent
-sys.path.insert(0, str(_PROJECT_ROOT))
+from time import perf_counter
+from uuid import uuid4
 
 from backend.agents import (
     AttractionSearchAgent,
@@ -26,8 +16,11 @@ from backend.agents import (
     WeatherQueryAgent,
 )
 from backend.config import settings
-from backend.models.trip import TripPlan, TripPlanRequest
+from backend.models.trip import GenerationMetrics, TripPlan, TripPlanRequest
+from backend.observability import LlmUsageTracker, current_llm_usage_tracker
 from backend.tools.images import search_image
+from backend.quality import evaluate_plan
+from backend.tracing import request_id as current_request_id
 
 logger = logging.getLogger("trip-planner")
 
@@ -45,30 +38,58 @@ class TripPlannerAgent:
         # 启动期校验：真实模式必须配置关键密钥，缺失即给出明确提示。
         self._require_real_mode()
 
+        trace_id = current_request_id.get() or uuid4().hex
+        usage_tracker = LlmUsageTracker()
+
+        def run_stage(name, fn, *args):
+            started = perf_counter()
+            status = "ok"
+            try:
+                token = current_llm_usage_tracker.set(usage_tracker)
+                return fn(*args)
+            except Exception:
+                status = "error"
+                raise
+            finally:
+                current_llm_usage_tracker.reset(token)
+                logger.info("agent_stage trace_id=%s stage=%s status=%s duration_ms=%.2f",
+                            trace_id, name, status, (perf_counter() - started) * 1000)
+
         # 三个子 Agent 互不依赖，并行执行以缩短端到端耗时。
         with _futures.ThreadPoolExecutor(max_workers=3) as ex:
-            f_attr = ex.submit(self.attraction_agent.run, request)
-            f_weather = ex.submit(self.weather_agent.run, request)
-            f_hotels = ex.submit(self.hotel_agent.run, request)
+            f_attr = ex.submit(run_stage, "attractions", self.attraction_agent.run, request)
+            f_weather = ex.submit(run_stage, "weather", self.weather_agent.run, request)
+            f_hotels = ex.submit(run_stage, "hotels", self.hotel_agent.run, request)
             attractions = f_attr.result()
             weather = f_weather.result()
             hotels = f_hotels.result()
 
         # 整合为完整行程 + 预算（预算与天气均基于真实数据，不依赖 LLM 臆造）。
-        plan = self.planner_agent.run(request, attractions, weather, hotels)
+        plan = run_stage("planning", self.planner_agent.run, request, attractions, weather, hotels)
 
         # 用真实天气覆盖 LLM 可能「重新生成」的 weather_info，确保仅真实数据。
         plan.weather_info = list(weather)
 
         # 高德多天预报上限为 4 天，超出部分已由 Open-Meteo 尽力补充；
         # 若补充源也失败，则在逐日备注中如实提示。
-        if len(weather) < len(plan.days):
-            for d in plan.days[len(weather):]:
+        forecast_dates = {w.date for w in weather}
+        for d in plan.days:
+            if d.date not in forecast_dates:
                 suffix = "（该日暂无天气预报，未提供）"
                 d.notes = (d.notes + "；" if d.notes else "") + suffix
 
         # 统一补封面图：并发检索 + 缓存 + 去重（Pexels → Openverse）。
-        self._enrich_images(plan)
+        run_stage("images", self._enrich_images, plan)
+        plan.generation_metrics = GenerationMetrics(**usage_tracker.snapshot(
+            model=settings.llm_model,
+            input_cost_per_1m_usd=settings.llm_input_cost_per_1m_usd,
+            output_cost_per_1m_usd=settings.llm_output_cost_per_1m_usd,
+        ))
+        report = evaluate_plan(request, plan)
+        logger.info(
+            "plan_quality trace_id=%s report=%s llm_usage=%s",
+            trace_id, report, plan.generation_metrics.model_dump(),
+        )
         return plan
 
     @staticmethod
@@ -92,12 +113,16 @@ class TripPlannerAgent:
         # 并发结束后在主线程按序去重，撞图（图库只有一张相关图）时带已用 URL
         # 补查一次，尽量让不同景点/酒店拿到不同照片，避免一个行程全是同一张图。
         jobs: list[tuple[object, str]] = []  # (obj, keyword)
+        grouped: dict[str, list[object]] = {}
         seen: set[str] = set()
         for day in plan.days:
             for a in day.attractions:
+                grouped.setdefault(a.name, []).append(a)
                 if a.name not in seen:
                     seen.add(a.name)
                     jobs.append((a, a.name))
+            if day.hotel:
+                grouped.setdefault(day.hotel.name, []).append(day.hotel)
             if day.hotel and day.hotel.name not in seen:
                 seen.add(day.hotel.name)
                 jobs.append((day.hotel, day.hotel.name))
@@ -133,3 +158,7 @@ class TripPlannerAgent:
                 obj.image_url = url2
             else:
                 obj.image_url = None
+
+        for obj, keyword in jobs:
+            for target in grouped[keyword]:
+                target.image_url = obj.image_url

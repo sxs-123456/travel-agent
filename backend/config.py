@@ -17,10 +17,16 @@ class Settings:
         self.llm_api_key: str = os.getenv("LLM_API_KEY", "")
         self.llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.openai.com/v1")
         self.llm_model: str = os.getenv("LLM_MODEL", "gpt-4o-mini")
+        self.llm_input_cost_per_1m_usd: float = float(
+            os.getenv("LLM_INPUT_COST_PER_1M_USD", "0")
+        )
+        self.llm_output_cost_per_1m_usd: float = float(
+            os.getenv("LLM_OUTPUT_COST_PER_1M_USD", "0")
+        )
         self.amap_api_key: str = os.getenv("AMAP_API_KEY", "")
-        # RAG 向量模型：留空用默认 BAAI/bge-small-zh-v1.5；
-        # 网络受限时可先在有网机器下载，再填本地目录路径（如 D:/models/bge-small-zh-v1.5）。
-        self.embedding_model: str = os.getenv("EMBEDDING_MODEL", "BAAI/bge-small-zh-v1.5")
+        self.use_amap_driving_route: bool = os.getenv(
+            "USE_AMAP_DRIVING_ROUTE", "true"
+        ).lower() in ("1", "true", "yes", "on")
         # Pexels 免费图库（封面图首选，选填）：留空则跳过、自动落到 Openverse 兜底，
         # 不影响「免 key 也能跑」。
         self.pexels_api_key: str = os.getenv("PEXELS_API_KEY", "")

@@ -14,6 +14,7 @@ export interface WeatherInfo {
 }
 
 export interface Attraction {
+  source_id?: string | null;
   name: string;
   location: Location;
   ticket_price: number;
@@ -24,10 +25,13 @@ export interface Attraction {
 }
 
 export interface Meal {
+  source_id?: string | null;
   name: string;
-  location: Location;
+  location?: Location | null;
   price: number;
   cuisine: string;
+  price_source?: string | null;
+  price_is_estimated?: boolean;
 }
 
 export interface Hotel {
@@ -47,6 +51,9 @@ export interface DayPlan {
   attractions: Attraction[];
   meals: Meal[];
   hotel?: Hotel | null;
+  route_distance_km?: number | null;
+  route_duration_min?: number | null;
+  route_distance_source?: "amap_driving" | "straight_line";
   notes: string;
 }
 
@@ -103,6 +110,17 @@ export interface TripPlan {
   budget?: Budget | null;
   train_info?: TrainRecommendation[] | null;
   train_note?: string | null;
+  generation_metrics?: GenerationMetrics | null;
+}
+
+export interface GenerationMetrics {
+  model: string;
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd?: number | null;
+  usage_available: boolean;
 }
 
 export interface TripPlanRequest {

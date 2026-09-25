@@ -6,12 +6,14 @@ from backend.tools.amap import (
     _parse_weather,
     text_search,
     weather,
+    driving_route,
 )
 from backend.tools.images import search_image
 from backend.rail_client import RailClient
 from backend.tools.train import TrainTicketProvider, _normalize_date
-from backend.models.trip import WeatherInfo
+from backend.models.trip import Attraction, DayPlan, Location, WeatherInfo
 from backend.config import settings
+import backend.tools.restaurants as restaurant_module
 
 
 # ---------------------------------------------------------------------------
@@ -21,14 +23,73 @@ def test_parse_pois_real():
     data = {
         "status": "1",
         "pois": [
-            {"name": "天安门", "location": "116.39,39.90", "address": "东城",
+            {"id": "B000A001", "name": "天安门", "location": "116.39,39.90", "address": "东城",
              "type": "风景名胜", "biz_ext": {"cost": "50"}},
         ],
     }
     out = _parse_pois(data)
     assert out[0]["name"] == "天安门"
+    assert out[0]["source_id"] == "B000A001"
     assert out[0]["location"].longitude == 116.39
     assert out[0]["ticket_price"] == 50
+
+
+def test_amap_driving_route_parses_distance_and_duration(monkeypatch):
+    class FakeResp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "status": "1",
+                "route": {"paths": [{"distance": "12500", "duration": "1800"}]},
+            }
+
+    monkeypatch.setattr(settings, "amap_api_key", "test-key")
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: FakeResp())
+    result = driving_route(
+        Location(longitude=116.3, latitude=39.9),
+        Location(longitude=116.4, latitude=40.0),
+    )
+    assert result == {
+        "distance_km": 12.5, "duration_min": 30.0, "source": "amap_driving"
+    }
+
+
+def test_restaurant_recommender_returns_real_nearby_poi(monkeypatch):
+    class FakeResp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "status": "1",
+                "pois": [{
+                    "id": "food-1",
+                    "name": "测试餐厅",
+                    "location": "120.11,30.21",
+                    "address": "测试路 1 号",
+                    "type": "餐饮服务;中餐厅;地方菜",
+                    "biz_ext": {"cost": "88"},
+                }],
+            }
+
+    monkeypatch.setattr(settings, "amap_api_key", "test-key")
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: FakeResp())
+    restaurant_module._search_near.cache_clear()
+    days = [DayPlan(
+        day=1,
+        date="2026-10-01",
+        attractions=[Attraction(
+            name="西湖", location=Location(longitude=120.1, latitude=30.2)
+        )],
+    )]
+    result = restaurant_module.recommend_restaurants(days)
+    assert result[1].source_id == "food-1"
+    assert result[1].name == "测试餐厅"
+    assert result[1].price == 88
+    assert result[1].location is not None
+    assert result[1].price_is_estimated is False
 
 
 # ---------------------------------------------------------------------------

@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, reactive, watch } from "vue";
+import { computed, defineAsyncComponent, reactive, watch } from "vue";
 import type { TripPlan } from "@/types/trip";
-import MapView from "./MapView.vue";
 import BudgetPanel from "./BudgetPanel.vue";
 import DayTimeline from "./DayTimeline.vue";
+
+const MapView = defineAsyncComponent(() => import("./MapView.vue"));
 
 const props = defineProps<{ plan: TripPlan }>();
 
@@ -91,6 +92,18 @@ function recomputeBudget() {
             style="background: #fff7e6; color: #d46b08"
           >
             {{ w.date || "Day" + (i + 1) }}：{{ w.condition }} {{ w.temperature }}℃
+          </span>
+          <span
+            v-if="editable.generation_metrics?.usage_available"
+            class="tp-tag"
+            style="background: #f0f5ff; color: #2f54eb"
+          >
+            LLM：{{ editable.generation_metrics.model }} ·
+            {{ editable.generation_metrics.calls }} 次 ·
+            {{ editable.generation_metrics.total_tokens.toLocaleString() }} tokens
+            <template v-if="editable.generation_metrics.estimated_cost_usd != null">
+              · ${{ editable.generation_metrics.estimated_cost_usd.toFixed(6) }}
+            </template>
           </span>
         </div>
       </div>

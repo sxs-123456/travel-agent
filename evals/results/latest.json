@@ -1,0 +1,277 @@
+{
+  "summary": {
+    "total_cases": 12,
+    "successful_cases": 12,
+    "success_rate": 1.0,
+    "quality_pass_rate": 1.0,
+    "latency_ms": {
+      "p50": 19246.61,
+      "p95": 22771.09
+    },
+    "average_day_coverage": 1.0,
+    "average_weather_coverage": 0.9167,
+    "issue_counts": {},
+    "llm_usage": {
+      "reported_cases": 12,
+      "calls": 24,
+      "input_tokens": 27165,
+      "output_tokens": 4685,
+      "total_tokens": 31850,
+      "estimated_cost_usd": null
+    }
+  },
+  "records": [
+    {
+      "name": "杭州两日自然",
+      "success": true,
+      "latency_ms": 16497.52,
+      "request_id": "786f76c5039e48f4937f324037e06c9a",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2098,
+        "output_tokens": 326,
+        "total_tokens": 2424,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "北京三日人文",
+      "success": true,
+      "latency_ms": 19246.61,
+      "request_id": "e16de0af192540e8bce79ab3e1da9faa",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2505,
+        "output_tokens": 417,
+        "total_tokens": 2922,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "上海同日城市游",
+      "success": true,
+      "latency_ms": 14709.79,
+      "request_id": "727b4cddf53b43bf9c9117ce0dd550e8",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 1825,
+        "output_tokens": 234,
+        "total_tokens": 2059,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "成都四日多人游",
+      "success": true,
+      "latency_ms": 22771.09,
+      "request_id": "8c994bf395f349f190f59b56119d9c1c",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2575,
+        "output_tokens": 514,
+        "total_tokens": 3089,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "西安三日低预算",
+      "success": true,
+      "latency_ms": 22909.85,
+      "request_id": "1fb3aa9293634254aaa77acbf6cc2925",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2566,
+        "output_tokens": 416,
+        "total_tokens": 2982,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "三亚两日度假",
+      "success": true,
+      "latency_ms": 16538.7,
+      "request_id": "6df690434e8946dc9acb53e6b655a6ad",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2104,
+        "output_tokens": 303,
+        "total_tokens": 2407,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "南京两日亲子",
+      "success": true,
+      "latency_ms": 18653.34,
+      "request_id": "d98b761e1c2e41fdb6d35fdc8a7cd6c6",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2034,
+        "output_tokens": 367,
+        "total_tokens": 2401,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "苏州三日园林",
+      "success": true,
+      "latency_ms": 19338.07,
+      "request_id": "f383f7a82b554a2fa4092237911cbb01",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2383,
+        "output_tokens": 432,
+        "total_tokens": 2815,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "厦门两日摄影",
+      "success": true,
+      "latency_ms": 15030.5,
+      "request_id": "6dc1da0dae1444a9ab4ede0f9cfa84f4",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 0.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 1836,
+        "output_tokens": 330,
+        "total_tokens": 2166,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "重庆三日城市游",
+      "success": true,
+      "latency_ms": 19607.42,
+      "request_id": "4cd5eec2ec21409b98cd9c3c4b775404",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2537,
+        "output_tokens": 463,
+        "total_tokens": 3000,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "青岛两日家庭游",
+      "success": true,
+      "latency_ms": 18861.54,
+      "request_id": "4a768786b25c462f8519f09fc1295e0e",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2055,
+        "output_tokens": 332,
+        "total_tokens": 2387,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    },
+    {
+      "name": "洛阳四日文化游",
+      "success": true,
+      "latency_ms": 20338.77,
+      "request_id": "dda05c4766e74ec3969d85d5becbb677",
+      "quality": {
+        "passed": true,
+        "issues": [],
+        "weather_coverage": 1.0,
+        "day_coverage": 1.0
+      },
+      "llm_usage": {
+        "model": "deepseek-chat",
+        "calls": 2,
+        "input_tokens": 2647,
+        "output_tokens": 551,
+        "total_tokens": 3198,
+        "estimated_cost_usd": null,
+        "usage_available": true
+      }
+    }
+  ]
+}

@@ -32,6 +32,22 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: false,
-    emptyOutDir: false,
+    emptyOutDir: true,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/ant-design-vue") || id.includes("node_modules/@ant-design")) {
+            return "vendor-antd";
+          }
+          if (id.includes("node_modules/vue") || id.includes("node_modules/@vue")) {
+            return "vendor-vue";
+          }
+          if (id.includes("node_modules/dayjs")) {
+            return "vendor-dayjs";
+          }
+        },
+      },
+    },
   },
 });
