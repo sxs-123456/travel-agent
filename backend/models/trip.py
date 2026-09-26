@@ -97,7 +97,8 @@ class Attraction(BaseModel):
     )
     description: str = Field("", description="简介")
     recommended_duration: int = Field(2, ge=1, description="建议游玩时长（小时）")
-    image_url: Optional[str] = Field(None, description="封面图（Unsplash）")
+    image_url: Optional[str] = Field(None, description="景点照片 URL")
+    image_source: Optional[str] = Field(None, description="照片来源")
 
 
 class Meal(BaseModel):
@@ -122,6 +123,7 @@ class Hotel(BaseModel):
     price_per_night: int = Field(0, ge=0, description="每晚价格（元）")
     star_rating: float = Field(3.0, ge=0, le=5, description="星级")
     image_url: Optional[str] = Field(None, description="封面图")
+    image_source: Optional[str] = Field(None, description="照片来源")
     level: Optional[str] = Field(None, description="酒店档次（经济型/舒适型/高档型/豪华型）")
     price_source: Optional[str] = Field(None, description="价格来源说明")
     price_is_estimated: bool = Field(
@@ -161,16 +163,20 @@ class Budget(BaseModel):
     transport_total: int = Field(0, ge=0, description="交通合计（= 城际 + 市内）")
     # 城际交通（火车票往返）；未启用 12306 时为 0。
     rail_total: int = Field(0, ge=0, description="城际交通（火车票）")
-    # 市内交通（打车/短驳）；未启用百度打车时为按天估算值。
+    # 市内交通（打车/短驳）；只有地图路线可用时才计入参考价。
     taxi_total: int = Field(0, ge=0, description="市内交通（打车/短驳）")
     rail_is_estimated: bool = Field(
         True, description="城际交通是否为估算（true=估算；false=来自 12306 真实票价）"
     )
     taxi_is_estimated: bool = Field(
-        True, description="市内交通是否为估算（true=按天估算；false=来自百度真实距离/时长）"
+        True,
+        description=(
+            "true=未获得地图路线，市内打车不计入预算；false=地图路线距离/时长套费率的参考价，"
+            "非实时叫车报价"
+        ),
     )
     transport_is_estimated: bool = Field(
-        True, description="交通整体是否含估算（向后兼容：任一分项估算即为 true）"
+        True, description="交通整体是否含估价（市内路线换算车费也属于参考估价）"
     )
     total: int = Field(0, ge=0, description="总计")
     travelers: int = Field(

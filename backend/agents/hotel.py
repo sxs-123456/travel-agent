@@ -6,7 +6,7 @@
 （A2A 出行助手）一致：返回「真实酒店（名称/坐标/官方档次/评分）」，
 价格按「城市系数 × 档次基准/评分档位」给出参考估算价，并明确标注
 price_is_estimated=True 与 price_source，绝不冒充官方报价。
-封面图由 planner 统一用 Pexels/Openverse 补，本 Agent 不处理图片。
+酒店照片优先使用高德 POI 附带照片；缺图时由 planner 用 Pexels/Openverse 补充。
 如需 100% 真实房价，需接入携程/同程/美团开放平台（商业 key），本代码留好扩展点。
 """
 from __future__ import annotations
@@ -42,5 +42,6 @@ class HotelAgent:
             level=item.get("level"),
             price_source=item.get("price_source"),
             price_is_estimated=True,
-            image_url=None,
+            image_url=item.get("image_url"),
+            image_source=item.get("image_source"),
         ) for item in ranked]

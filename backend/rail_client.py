@@ -2,7 +2,7 @@
 
 薄封装层：对 planner 提供 `available` / `search_with_prices` / `recommend`
 等高层接口；底层实现在 `backend/tools/train.py` 的 `TrainTicketProvider`。
-由 `USE_RAIL_MCP`（默认 false）开关；查询失败时上层回退到估算。
+由 `USE_RAIL_MCP`（默认 true）开关；查询失败时上层提示原因，火车票不计入预算。
 """
 from __future__ import annotations
 

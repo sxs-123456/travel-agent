@@ -107,6 +107,18 @@ def health() -> dict:
     return {"status": "ok"}
 
 
+@app.get("/api/public-config")
+def public_config() -> dict[str, str]:
+    """只向浏览器提供本来就会公开的高德 JS API 配置，不返回服务端密钥。"""
+    return {
+        "amap_js_key": os.getenv("AMAP_JS_API_KEY") or os.getenv("VITE_AMAP_KEY", ""),
+        "amap_js_security_code": (
+            os.getenv("AMAP_JS_API_SECURITY_CODE")
+            or os.getenv("VITE_AMAP_SECURITY_CODE", "")
+        ),
+    }
+
+
 @app.post("/api/trip-plan", response_model=TripPlan)
 def create_plan(request: TripPlanRequest) -> TripPlan:
     """接收行程请求，返回完整的多智能体规划结果。"""

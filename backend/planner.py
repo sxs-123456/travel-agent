@@ -78,7 +78,7 @@ class TripPlannerAgent:
                 suffix = "（该日暂无天气预报，未提供）"
                 d.notes = (d.notes + "；" if d.notes else "") + suffix
 
-        # 统一补封面图：并发检索 + 缓存 + 去重（Pexels → Openverse）。
+        # 优先保留 POI 实景图；缺图时并发检索、缓存和去重（Pexels → Openverse）。
         run_stage("images", self._enrich_images, plan)
         plan.generation_metrics = GenerationMetrics(**usage_tracker.snapshot(
             model=settings.llm_model,
@@ -107,58 +107,66 @@ class TripPlannerAgent:
 
     @staticmethod
     def _enrich_images(plan: TripPlan) -> None:
-        # 封面图统一策略：所有景点/酒店一律用 search_image（Pexels → Openverse）补图，
-        # LLM 臆造的 image_url 一律覆盖为真实检索结果，杜绝假图/裂图。
-        # 图片检索是外部 HTTP 请求（主要耗时），互不依赖，故并发执行；
-        # 并发结束后在主线程按序去重，撞图（图库只有一张相关图）时带已用 URL
-        # 补查一次，尽量让不同景点/酒店拿到不同照片，避免一个行程全是同一张图。
-        jobs: list[tuple[object, str]] = []  # (obj, keyword)
+        # 优先保留 POI 数据源附带的地点照片；缺图时再查 Pexels/Openverse。
+        # LLM 输出不会直接成为照片来源。外部检索使用「城市 + 景点/酒店名」减少同名误配。
+        jobs: list[tuple[object, str, str]] = []  # (obj, search query, group key)
         grouped: dict[str, list[object]] = {}
-        seen: set[str] = set()
         for day in plan.days:
             for a in day.attractions:
                 grouped.setdefault(a.name, []).append(a)
-                if a.name not in seen:
-                    seen.add(a.name)
-                    jobs.append((a, a.name))
             if day.hotel:
                 grouped.setdefault(day.hotel.name, []).append(day.hotel)
-            if day.hotel and day.hotel.name not in seen:
-                seen.add(day.hotel.name)
-                jobs.append((day.hotel, day.hotel.name))
+
+        used_urls: set[str] = set()
+        for keyword, items in grouped.items():
+            poi_photo = next((
+                item for item in items
+                if getattr(item, "image_source", None) == "高德 POI" and item.image_url
+            ), None)
+            if poi_photo:
+                for target in items:
+                    target.image_url = poi_photo.image_url
+                    target.image_source = "高德 POI"
+                used_urls.add(poi_photo.image_url.split("?")[0])
+            else:
+                query = f"{plan.city} {keyword}".strip()
+                jobs.append((items[0], query, keyword))
 
         if not jobs:
             return
 
-        def _fetch(item: tuple[object, str]) -> tuple[object, str, str | None]:
-            obj, kw = item
+        def _fetch(item: tuple[object, str, str]) -> tuple[object, str, str, str | None]:
+            obj, query, group_key = item
             try:
-                return obj, kw, search_image(kw)
+                return obj, query, group_key, search_image(query)
             except Exception:  # noqa: BLE001  图片为辅助信息，单张失败不影响整体
-                logger.warning("封面图检索失败：%s", kw)
-                return obj, kw, None
+                logger.warning("封面图检索失败：%s", query)
+                return obj, query, group_key, None
 
         with _futures.ThreadPoolExecutor(max_workers=min(8, len(jobs))) as ex:
             results = list(ex.map(_fetch, jobs))
 
-        used_urls: set[str] = set()  # 已用过的图（去 query 参数后的 base URL）
-        for obj, kw, url in results:
+        for obj, query, group_key, url in results:
             base = (url or "").split("?")[0]
             if url and base not in used_urls:
                 used_urls.add(base)
                 obj.image_url = url
+                obj.image_source = "Pexels" if "pexels.com" in url.lower() else "Openverse"
                 continue
             # 撞图 / 检索失败：带已用图集合补查一次（并发下极少发生，串行兜底）
             try:
-                url2 = search_image(kw, exclude=used_urls)
+                url2 = search_image(query, exclude=used_urls)
             except Exception:  # noqa: BLE001
                 url2 = None
             if url2:
                 used_urls.add(url2.split("?")[0])
                 obj.image_url = url2
+                obj.image_source = "Pexels" if "pexels.com" in url2.lower() else "Openverse"
             else:
                 obj.image_url = None
+                obj.image_source = None
 
-        for obj, keyword in jobs:
+        for obj, _query, keyword in jobs:
             for target in grouped[keyword]:
                 target.image_url = obj.image_url
+                target.image_source = obj.image_source

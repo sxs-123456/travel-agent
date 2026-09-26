@@ -197,7 +197,7 @@ function recomputeBudget() {
           </div>
         </div>
         <!-- 无车次面板时的原因提示（未填出发城市 / 未启用 / 查询失败），避免静默"功能缺失" -->
-        <div v-else-if="editable.train_note" class="tp-rail-note">
+        <div v-if="editable.train_note" class="tp-rail-note">
           <span class="tp-muted" style="font-size: 12px">🚄 {{ editable.train_note }}</span>
         </div>
       </div>

@@ -22,6 +22,7 @@ export interface Attraction {
   description: string;
   recommended_duration: number;
   image_url?: string | null;
+  image_source?: string | null;
 }
 
 export interface Meal {
@@ -40,6 +41,7 @@ export interface Hotel {
   price_per_night: number;
   star_rating: number;
   image_url?: string | null;
+  image_source?: string | null;
   level?: string | null;
   price_source?: string | null;
   price_is_estimated?: boolean;

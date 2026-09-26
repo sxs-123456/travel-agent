@@ -25,9 +25,14 @@ LLM_BASE_URL=https://你的模型服务兼容地址
 LLM_MODEL=你的模型名称
 AMAP_API_KEY=你的高德 Web 服务密钥
 CORS_ORIGINS=https://你的前端域名
+USE_RAIL_MCP=true
 ```
 
 `CORS_ORIGINS` 填部署完成后前端的完整来源，例如 `https://trip-demo.pages.dev`，不要加路径或末尾斜杠。多个来源用英文逗号分隔。`PEXELS_API_KEY`、`BAIDU_MAP_AK` 等可选功能密钥按需设置。
+
+Railway 若已有 `USE_RAIL_MCP=false`，必须在服务的 Variables 中改为 `true` 并重新部署；代码默认值不会覆盖显式的 `false`。12306 查询还要求输入出发城市，且可能受预售期和接口风控影响。项目会把查询失败或票价缺失明确显示出来，并说明未计入预算。
+
+如需在 Railway 显示高德交互地图，可在运行时 Variables 设置 `AMAP_JS_API_KEY`（Web 端 JS API Key）和 `AMAP_JS_API_SECURITY_CODE`。页面会从同源 `/api/public-config` 读取这两个浏览器配置，无需为它们重建前端；后端 `AMAP_API_KEY` 仍保留在服务端。Key 应限制允许域名为部署域名。保存变量并等服务重启/部署完成后，再刷新页面。
 
 后端部署完成后记录其公开 HTTPS 地址，例如 `https://trip-api.example-host.com`，并先打开 `https://trip-api.example-host.com/health` 确认服务正常。
 

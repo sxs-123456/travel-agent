@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from "vue";
 import type { TripPlan } from "@/types/trip";
 
 // 解构保留响应式引用（对象属性解构不会丢失响应性）。
@@ -9,6 +10,12 @@ const emit = defineEmits<{
   (e: "remove-meal", dayIdx: number, mealIdx: number): void;
   (e: "update-notes", dayIdx: number, value: string): void;
 }>();
+
+const failedImages = ref(new Set<string>());
+function markImageFailed(url?: string | null) {
+  if (!url) return;
+  failedImages.value = new Set([...failedImages.value, url]);
+}
 </script>
 
 <template>
@@ -38,8 +45,20 @@ const emit = defineEmits<{
       <div v-if="day.attractions.length" style="margin: 6px 0">
         <div class="tp-muted" style="font-size: 12px; margin-bottom: 4px">景点</div>
         <div v-for="(a, ai) in day.attractions" :key="a.name" class="tp-spot">
-          <img v-if="a.image_url" :src="a.image_url" class="tp-spot-img" alt="" />
-          <div v-else class="tp-spot-img" />
+          <div class="tp-spot-photo">
+            <img
+              v-if="a.image_url && !failedImages.has(a.image_url)"
+              :src="a.image_url"
+              class="tp-spot-img"
+              alt=""
+              loading="lazy"
+              @error="markImageFailed(a.image_url)"
+            />
+            <div v-else class="tp-spot-img tp-spot-img-empty" aria-label="图片暂不可用">景点</div>
+            <small v-if="a.image_source && a.image_url && !failedImages.has(a.image_url)" class="tp-spot-image-source">
+              {{ a.image_source }}
+            </small>
+          </div>
           <div class="tp-spot-body">
             <div class="tp-spot-name">
               {{ a.name }}

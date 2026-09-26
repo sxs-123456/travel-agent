@@ -264,10 +264,9 @@ class TrainTicketProvider:
         """从候选车次中挑「最合适」的一班并给出推荐理由。
 
         评分（越低越好）：
-          1. 首选席别真实票价（未返回票价的车次排最后，避免误推无价班次）；
-          2. 出发时间（8:00-10:00 的早班加分，太早/太晚略减分）；
-          3. 到达时间（下午前到达加分）；
-          4. 历时（越短越好）。
+          1. 先避开凌晨出发或深夜到达的车次；
+          2. 首选席别真实票价（未返回票价的车次排后）；
+          3. 优先上午出发、下午前到达，再比较票价与历时。
         返回 (推荐车次 dict | None, 推荐理由 str)。
         """
         if not trains:
@@ -310,22 +309,33 @@ class TrainTicketProvider:
                     s += 30
                 elif d >= 18 * 60:
                     s += 20
-            if a is not None and a <= 15 * 60:
-                s -= 20  # 下午 3 点前到达加分
+            if a is not None:
+                if a < 6 * 60 or a >= 23 * 60:
+                    s += 60  # 凌晨/深夜到站，接驳通常不便
+                elif a <= 15 * 60:
+                    s -= 20  # 下午 3 点前到达加分
             return s
+
+        def _unsocial_hours(t) -> int:
+            """夜间时段不作为常规首选，但没有白天车次时仍允许兜底推荐。"""
+            dep = _hm_minutes(t.get("depart_time"))
+            arr = _hm_minutes(t.get("arrive_time"))
+            return int(
+                dep is not None and (dep < 6 * 60 or dep >= 22 * 60)
+                or arr is not None and (arr < 6 * 60 or arr >= 23 * 60)
+            )
 
         def _score(t) -> tuple:
             p = _pref_price(t)
-            # ① 首选席别有真实票价的车次最优先（用户指定的席别能坐）；
-            # ② 无真实票价的车次排最后（诚实优先，不推荐「不知道价格的班次」）；
-            # ③ 其余按 出发时间 → 耗时 排序。
+            # 时间可行性优先于票价，避免便宜的凌晨班次压过正常白天车次。
             has_pref = 0 if any(
                 s.get("type") == pref and s.get("price") is not None
                 for s in t.get("seats", [])
             ) else 1
             price_key = (0, p) if p is not None else (1, 0)
-            return (has_pref, price_key, _time_score(t.get("depart_time"), t.get("arrive_time")),
-                    _min_minutes(t))
+            return (_unsocial_hours(t), has_pref,
+                    _time_score(t.get("depart_time"), t.get("arrive_time")),
+                    price_key, _min_minutes(t))
 
         best = min(trains, key=_score)
         p = _pref_price(best)
@@ -335,8 +345,13 @@ class TrainTicketProvider:
         if dep_min is not None and 8 * 60 <= dep_min <= 10 * 60:
             reasons.append("上午出发时间合适")
         elif dep_min is not None and dep_min < 6 * 60:
-            reasons.append("出发偏早但票源充足")
-        if best.get("arrive_time") and _hm_minutes(best.get("arrive_time")) is not None and _hm_minutes(best.get("arrive_time")) <= 15 * 60:
+            reasons.append("凌晨出发，建议提前确认交通接驳")
+        elif dep_min is not None and dep_min >= 22 * 60:
+            reasons.append("深夜出发，建议提前确认交通接驳")
+        arr_min = _hm_minutes(best.get("arrive_time"))
+        if arr_min is not None and (arr_min < 6 * 60 or arr_min >= 23 * 60):
+            reasons.append("到站时段较晚或较早，建议确认接驳安排")
+        if arr_min is not None and 6 * 60 <= arr_min <= 15 * 60:
             reasons.append("午后即可到达，方便安排当日行程")
         if best.get("duration"):
             reasons.append(f"全程约 {best['duration']}")

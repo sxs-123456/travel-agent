@@ -259,7 +259,7 @@ def test_structured_chain_retries_on_missing_required_field():
     assert out.items
 
 
-# ----- 预算由真实数据计算（门票/餐饮按人头，酒店按间夜，交通按人×天）-----
+# ----- 预算由真实数据计算（门票/餐饮按人头，酒店按间夜；路线缺失不虚估打车费）-----
 def test_compute_budget_real():
     req = TripPlanRequest(
         city="杭州",
@@ -281,15 +281,15 @@ def test_compute_budget_real():
     )]
     b = PlannerAgent._compute_budget(req, days, days[0].hotel)
     # 门票 (80+75)*2=310，餐饮 200*2=400，酒店 900*1晚=900（2 天行程 = 1 晚）；
-    # 交通：城际 0 + 市内估算 100*1天*2人=200，总计 1810
+    # 无地图路线时不编造市内打车金额；总计 310+400+900=1610
     assert b.ticket_total == 310
     assert b.meal_total == 400
     assert b.hotel_total == 900
-    assert b.transport_total == 200
+    assert b.transport_total == 0
     assert b.rail_total == 0
-    assert b.taxi_total == 200
+    assert b.taxi_total == 0
     assert b.taxi_is_estimated is True
-    assert b.total == 1810
+    assert b.total == 1610
 
 
 def test_compute_budget_hotel_nights_vs_days():
@@ -374,7 +374,7 @@ def test_apply_single_hotel():
 
 
 def test_compute_budget_with_12306_transport():
-    """接入 12306 真实票价时，城际用真实值；市内仍按天估算（不再漏算）。"""
+    """接入 12306 真实票价时，城际用真实值；路线缺失的市内费用明确不计入。"""
     req = TripPlanRequest(
         city="杭州", start_date="2026-10-01", end_date="2026-10-02",
         travelers=2, budget_level="中等",
@@ -386,16 +386,17 @@ def test_compute_budget_with_12306_transport():
         meals=[Meal(name="楼外楼", location=loc, price=200)],
         hotel=Hotel(name="H", location=loc, price_per_night=900),
     )]
-    # 12306 单人往返 1200，2 人 => 城际 2400；市内估算 100*1*2=200
+    # 12306 单人往返 1200，2 人 => 城际 2400；没有地图路线，不虚估市内费用。
     b = PlannerAgent._compute_budget(
         req, days, days[0].hotel, rail=2400, rail_is_estimated=False
     )
     assert b.rail_total == 2400
     assert b.rail_is_estimated is False
-    assert b.taxi_total == 200
-    assert b.transport_total == 2600
-    assert b.transport_is_estimated is True  # 城际真实但市内估算 → 整体含估算
-    assert b.total == (80 * 2) + (200 * 2) + 900 + 2600
+    assert b.taxi_total == 0
+    assert b.taxi_is_estimated is True
+    assert b.transport_total == 2400
+    assert b.transport_is_estimated is False  # 城际票价真实；未取得的市内费用未计入
+    assert b.total == (80 * 2) + (200 * 2) + 900 + 2400
 
 
 def test_compute_budget_with_taxi():
@@ -419,7 +420,7 @@ def test_compute_budget_with_taxi():
     assert b.taxi_total == 120
     assert b.taxi_is_estimated is False
     assert b.transport_total == 2520
-    assert b.transport_is_estimated is False  # 城际+市内均为真实
+    assert b.transport_is_estimated is True  # 12306 车票真实；市内车费仍是路线参考价
     assert b.total == (80 * 2) + (200 * 2) + 900 + 2520
 
 
@@ -458,7 +459,7 @@ def test_same_scenic_area_rules():
     assert not _same_scenic_area("天坛", "天坛公园")                # 短名 < 4 字不判同景区
 
 
-# ----- 封面图统一化：所有 image_url 一律由 search_image 覆盖 -----
+# ----- 封面图统一化：真实 POI 照片优先，其余由图库搜索覆盖 -----
 def test_enrich_images_overwrites_llm_fake_url(monkeypatch):
     """所有景点/酒店的 image_url 统一由 search_image（Pexels/Openverse）覆盖，杜绝假图。"""
     from backend.planner import TripPlannerAgent
@@ -488,9 +489,9 @@ def test_enrich_images_overwrites_llm_fake_url(monkeypatch):
     )
     TripPlannerAgent._enrich_images(plan)
     day = plan.days[0]
-    assert day.attractions[0].image_url == "https://real.example/故宫.jpg"  # 假 URL 被覆盖
-    assert day.attractions[1].image_url == "https://real.example/颐和园.jpg"  # 无图 → 补图
-    assert day.hotel.image_url == "https://real.example/某酒店.jpg"  # 假 URL 被覆盖
+    assert day.attractions[0].image_url == "https://real.example/北京 故宫.jpg"  # 假 URL 被覆盖
+    assert day.attractions[1].image_url == "https://real.example/北京 颐和园.jpg"  # 无图 → 补图
+    assert day.hotel.image_url == "https://real.example/北京 某酒店.jpg"  # 假 URL 被覆盖
 
 
 def test_enrich_images_passes_exclude_for_diversity(monkeypatch):
@@ -528,9 +529,9 @@ def test_enrich_images_dedupe_collision_retries_with_exclude(monkeypatch):
 
     def fake_search(kw, exclude=None):
         exclude_seen.append(set(exclude or set()))
-        if kw == "故宫":
+        if kw == "北京 故宫":
             return "https://real.example/only-one.jpg"
-        if kw == "颐和园":
+        if kw == "北京 颐和园":
             # 撞图补查时 exclude 已含该图 → 图库无其他候选，返回 None
             return None if "https://real.example/only-one.jpg" in exclude_seen[-1] \
                 else "https://real.example/only-one.jpg"
@@ -554,7 +555,7 @@ def test_enrich_images_dedupe_collision_retries_with_exclude(monkeypatch):
     a1, a2, a3 = plan.days[0].attractions
     assert a1.image_url == "https://real.example/only-one.jpg"  # 故宫先到先得
     assert a2.image_url is None  # 撞图且无第二候选 → 诚实降级为无图
-    assert a3.image_url == "https://real.example/天坛.jpg"
+    assert a3.image_url == "https://real.example/北京 天坛.jpg"
     # 补查调用携带了已用图的 exclude（撞图去重生效）
     assert any("https://real.example/only-one.jpg" in s for s in exclude_seen)
 

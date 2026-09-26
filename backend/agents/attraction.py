@@ -4,7 +4,7 @@
 -----------------------------
 - 门票：百度百科词条卡片 API（免费、免 key），如故宫「60元旺季/40元淡季」；
   查不到的景点如实标注「门票以景区现场公告为准」，绝不臆造。
-- 封面图：统一由 planner._enrich_images 用 Pexels/Openverse 补，本 Agent 不处理图片。
+- 图片：优先使用高德 POI 附带照片；缺图时由 planner 用 Pexels/Openverse 补充。
 
 多天行程防重复
 -------------
@@ -97,7 +97,8 @@ class AttractionSearchAgent:
                 location=source["location"].model_copy(deep=True),
                 ticket_price=0,
                 description=source.get("description", ""),
-                image_url=None,
+                image_url=source.get("image_url"),
+                image_source=source.get("image_source"),
             )
 
         for source_id in selection.source_ids:
@@ -142,7 +143,7 @@ class AttractionSearchAgent:
                 seen_ids.add(source_id)
                 verified.append(materialize(source))
 
-        # 真实门票：百度百科卡片（免费、免 key）。封面图由 planner 统一用 Pexels/Openverse 补。
+        # 真实门票：百度百科卡片（免费、免 key）；地点照片来自 POI，后续缺图再补。
         def enrich_ticket(item: Attraction) -> Attraction:
             price, note = query_baike_card(item.name)
             if price is not None:

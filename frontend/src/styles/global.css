@@ -157,6 +157,9 @@ button { cursor: pointer; }
 .tp-spot { display: flex; gap: 10px; padding: 10px 0; border-bottom: 1px dashed var(--line); }
 .tp-spot:last-child { border-bottom: none; }
 .tp-spot-img { width: 72px; height: 72px; border-radius: 10px; object-fit: cover; flex: none; background: var(--brand-soft); }
+.tp-spot-photo { width: 72px; flex: none; text-align: center; }
+.tp-spot-img-empty { display: grid; place-items: center; color: var(--ink-2); font-size: 11px; }
+.tp-spot-image-source { color: var(--ink-2); font-size: 9px; line-height: 1.2; }
 .tp-spot-body { flex: 1; min-width: 0; }
 .tp-spot-name { font-weight: 600; font-size: 14px; }
 .tp-tag { display: inline-block; background: var(--brand-soft); color: var(--brand); border-radius: 6px; padding: 1px 7px; font-size: 12px; margin-right: 6px; }

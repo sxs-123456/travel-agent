@@ -12,8 +12,7 @@ const rows = computed(() => {
     { label: b.rooms && b.rooms > 1 ? `酒店（${b.rooms} 间）` : "酒店", value: b.hotel_total, color: "#52c41a" },
     { label: "餐饮", value: b.meal_total, color: "#fa8c16" },
   ];
-  // 交通拆「城际(火车) + 市内(打车/短驳)」两行，明确标注「市内/城际」避免与火车混淆；
-  // 各自标注真实/估算来源（百度实时 = 真实，档位×天 = 估算）。
+  // 交通拆成城际与市内两行；地图路线不可用时不展示虚构的打车金额。
   if (b.rail_total) {
     list.push({
       label: b.rail_is_estimated ? "城际·火车（估算）" : "城际·火车（12306）",
@@ -23,7 +22,7 @@ const rows = computed(() => {
   }
   if (b.taxi_total) {
     list.push({
-      label: b.taxi_is_estimated ? "市内·打车（估算）" : "市内·打车（百度）",
+      label: "市内打车（路线参考价）",
       value: b.taxi_total,
       color: "#13c2c2",
     });
@@ -55,5 +54,11 @@ const rows = computed(() => {
         size="small"
       />
     </div>
+    <p v-if="budget.taxi_total && !budget.taxi_is_estimated" class="tp-muted" style="font-size: 11px; margin: -2px 0 0">
+      这是全程路线参考价：按酒店与每天首个景点往返路线估算，实际车费以打车平台为准。
+    </p>
+    <p v-else-if="budget.taxi_is_estimated" class="tp-muted" style="font-size: 11px; margin: -2px 0 0">
+      暂未取得可用的地图路线，市内打车费用未计入总预算；路线可用后会显示参考价。
+    </p>
   </div>
 </template>

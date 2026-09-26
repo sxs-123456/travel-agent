@@ -10,8 +10,9 @@ interface Spot {
 
 const props = defineProps<{ spots: Spot[]; city: string; height?: number }>();
 
-const AMAP_KEY = (import.meta.env.VITE_AMAP_KEY as string) || "";
-const SECURITY = (import.meta.env.VITE_AMAP_SECURITY_CODE as string) || "";
+const API_BASE = ((import.meta.env.VITE_API_BASE as string) || "").replace(/\/+$/, "");
+const amapKey = ref((import.meta.env.VITE_AMAP_KEY as string) || "");
+const securityCode = ref((import.meta.env.VITE_AMAP_SECURITY_CODE as string) || "");
 const mapEl = ref<HTMLDivElement | null>(null);
 const ready = ref(false);
 const loadFailed = ref(false);
@@ -20,9 +21,11 @@ let map: any = null;
 function loadAMap(): Promise<any> {
   return new Promise((resolve, reject) => {
     if (window.AMap) return resolve(window.AMap);
-    if (SECURITY) window._AMapSecurityConfig = { securityJsCode: SECURITY };
+    if (securityCode.value) {
+      window._AMapSecurityConfig = { securityJsCode: securityCode.value };
+    }
     const s = document.createElement("script");
-    s.src = `https://webapi.amap.com/maps?v=2.0&key=${AMAP_KEY}`;
+    s.src = `https://webapi.amap.com/maps?v=2.0&key=${encodeURIComponent(amapKey.value)}`;
     s.async = true;
     s.onload = () => resolve(window.AMap);
     s.onerror = () => reject(new Error("高德地图脚本加载失败"));
@@ -31,7 +34,7 @@ function loadAMap(): Promise<any> {
 }
 
 async function render() {
-  if (!AMAP_KEY || !mapEl.value) return;
+  if (!amapKey.value || !mapEl.value) return;
   try {
     const AMap = await loadAMap();
     const center = props.spots[0]
@@ -60,11 +63,28 @@ async function render() {
   }
 }
 
-onMounted(render);
+async function initializeMap() {
+  if (!amapKey.value) {
+    try {
+      const response = await fetch(`${API_BASE}/api/public-config`, { cache: "no-store" });
+      if (response.ok) {
+        const config = await response.json();
+        amapKey.value = config.amap_js_key || "";
+        securityCode.value = config.amap_js_security_code || "";
+      }
+    } catch {
+      // Public configuration is optional; the coordinate list remains available.
+    }
+  }
+  if (amapKey.value) await render();
+  else loadFailed.value = true;
+}
+
+onMounted(initializeMap);
 watch(
   () => props.spots,
   () => {
-    if (ready.value) render();
+    if (ready.value && amapKey.value) render();
   },
   { deep: true }
 );
@@ -72,13 +92,13 @@ watch(
 
 <template>
   <div>
-    <div v-if="!AMAP_KEY || loadFailed" class="tp-empty-map">
+    <div v-if="!amapKey || loadFailed" class="tp-empty-map">
       <div>
         <p class="tp-section-title">📍 行程地理坐标</p>
         <p class="tp-muted">
-          高德地图暂不可用（{{ !AMAP_KEY ? "未配置 Key" : "Key 加载失败，可能为 Web 服务 Key 而非 JS API Key" }}），
-          已降级为坐标列表。在 frontend/.env 填入 VITE_AMAP_KEY（Web端 JS API Key）并重新
-          <code>npm run build</code> 即可启用可视化地图。
+          高德地图暂不可用（{{ !amapKey ? "未配置 JS API Key" : "Key 加载失败，请检查 Key 类型、域名限制和安全码" }}），
+          已降级为坐标列表。在 Railway 服务变量中设置 AMAP_JS_API_KEY（Web 端 JS API Key）和
+          AMAP_JS_API_SECURITY_CODE，等服务重启后刷新页面；请将 Key 的允许域名限制为本站。
         </p>
         <ul style="text-align: left; margin: 10px 0 0; padding-left: 18px">
           <li v-for="(sp, i) in spots" :key="i" style="margin-bottom: 4px">

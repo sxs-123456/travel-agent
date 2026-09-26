@@ -29,8 +29,6 @@ from backend.tools.amap import driving_route
 from backend.tools.restaurants import recommend_restaurants
 logger = logging.getLogger("trip-planner")
 
-_TRANSPORT_PER_DAY = {"经济": 50, "中等": 100, "豪华": 200}
-
 
 def _norm_name(name: str) -> str:
     """归一化名称（去空格与标点），用于把上游高德照片映射回 LLM 重生成的同名项。"""
@@ -329,7 +327,7 @@ class PlannerAgent:
         # 门票/餐饮按人头计；酒店按间夜计（一间房可多人入住，不乘人数）；
         # 交通分「城际(rail，火车票往返)」与「市内(taxi，打车/短驳)」两部分：
         #   - rail 传真实票价(12306)则用真实值，否则为 0（未启用城际）；
-        #   - taxi 传真实打车估算(百度)则用真实值，否则按「档位 × 天数 × 人数」估算。
+        #   - taxi 仅在地图返回路线时计入参考价；路线不可用时不虚构金额。
         ticket = sum(a.ticket_price for d in days for a in d.attractions) * request.travelers
         meal = sum(m.price for d in days for m in d.meals) * request.travelers
         # 酒店间夜数 = 行程天数 - 1（23 号出发、25 号返程 = 2 晚，不是 3 晚）；
@@ -346,10 +344,12 @@ class PlannerAgent:
         if rail is None:
             rail = 0
         if taxi is None:
-            taxi = _TRANSPORT_PER_DAY.get(request.budget_level, 100) * len(days) * request.travelers
+            taxi = 0
             taxi_is_estimated = True
         transport = rail + taxi
-        transport_is_estimated = rail_is_estimated or taxi_is_estimated
+        # 地图路程数据是真实的，但按固定费率换算的车费仍是参考估价。
+        # 仅当金额已计入且其中有估值时才标记；缺失项目已从总计排除。
+        transport_is_estimated = bool(rail and rail_is_estimated) or bool(taxi)
         total = ticket + meal + hotel_total + transport
         return Budget(
             ticket_total=ticket,
@@ -457,17 +457,23 @@ class PlannerAgent:
                 if go_price is not None and back_price is not None:
                     rail = (go_price + back_price) * request.travelers
                     rail_is_estimated = False
+                else:
+                    train_note = "12306 已返回车次，但去程或返程票价缺失；火车票未计入总预算，请以 12306 下单页为准。"
             except Exception as e:
-                logger.warning("12306 真实票价获取失败，城际交通回退为估算：%s", e)
+                logger.warning("12306 真实票价获取失败，火车票不计入预算：%s", e)
                 train_info = None
-                train_note = f"12306 车次查询失败，城际交通已回退估算（{e}）。"
+                train_note = f"12306 查询失败，火车票未计入总预算（{e}）。"
         elif not settings.use_rail_mcp:
-            train_note = "未启用 12306 真实车票（USE_RAIL_MCP=false），城际交通为估算值。"
+            train_note = (
+                "未启用 12306（USE_RAIL_MCP=false），火车票价未查询且未计入预算。"
+                "在 Railway 服务变量中设为 true 并重新部署后，重新生成行程即可查询。"
+            )
         elif not request.origin_city:
-            train_note = "未填写出发城市，故未查询 12306 车次；填写出发城市后可获得真实往返票价与车次推荐。"
+            train_note = "未填写出发城市，未查询 12306；火车票未计入总预算。填写出发城市后可查询票价与车次。"
 
-        # 市内交通：配 BAIDU_MAP_AK 时用真实打车估算（酒店↔景点往返），否则按天估算。
+        # 市内交通：百度或高德地图路线估价；路线不可用时不计入预算。
         taxi = self._estimate_city_taxi(plan.days, hotel)
+        # false 表示已按地图路线距离/时长估价；这仍是参考价，不是实时叫车报价。
         taxi_is_estimated = taxi is None
 
         plan.budget = self._compute_budget(
@@ -585,26 +591,45 @@ class PlannerAgent:
 
     @staticmethod
     def _estimate_city_taxi(days: list[DayPlan], hotel: Hotel | None) -> int | None:
-        """市内打车估算：每天「酒店 ↔ 当天首个景点」往返（单程 × 2），按车计价。
+        """市内打车参考价：每天「酒店 ↔ 当天首个景点」往返（单程 × 2）。
 
-        未配置 BAIDU_MAP_AK / 无酒店 / 任一天估算失败时返回 None，由调用方回退按天估算。
+        优先使用百度路线；百度未配置或失败时使用已有的高德路线 Key。
+        两者都不可用 / 无酒店 / 任一天路线估算失败时返回 None，由调用方回退按天粗估。
         """
-        if not settings.baidu_map_ak or not hotel:
+        if not hotel or (not settings.baidu_map_ak and not settings.use_real_amap):
             return None
-        from backend.tools.taxi import BaiduRideProvider
+        from backend.tools.taxi import BaiduRideProvider, estimate_fare
 
-        provider = BaiduRideProvider()
+        provider = BaiduRideProvider() if settings.baidu_map_ak else None
         active_days = [day for day in days if day.attractions]
         if not active_days:
             return None
 
         def estimate(day: DayPlan) -> float:
             first = day.attractions[0]
-            result = provider.estimate_ride_by_coords(
-                hotel.location.latitude, hotel.location.longitude,
-                first.location.latitude, first.location.longitude,
-                start_label="酒店", end_label=first.name,
-            )
+            result = None
+            if provider:
+                try:
+                    result = provider.estimate_ride_by_coords(
+                        hotel.location.latitude, hotel.location.longitude,
+                        first.location.latitude, first.location.longitude,
+                        start_label="酒店", end_label=first.name,
+                    )
+                except Exception:
+                    if not settings.use_real_amap:
+                        raise
+            if result is None and settings.use_real_amap:
+                from backend.tools.amap import driving_route
+
+                route = driving_route(hotel.location, first.location)
+                result = estimate_fare(
+                    "酒店", first.name,
+                    float(route["distance_km"]) * 1000,
+                    float(route["duration_min"]) * 60,
+                    city="", to_label=first.name,
+                )
+            if result is None:
+                raise RuntimeError("没有可用的地图路线服务")
             return float(result["estimated_fare"]) * 2
 
         try:
@@ -612,6 +637,6 @@ class PlannerAgent:
                 fares = list(executor.map(estimate, active_days))
             total = sum(fares)
         except Exception as e:
-            logger.warning("市内打车估算失败，回退按天估算：%s", e)
+            logger.warning("市内打车路线估价失败，费用未计入预算：%s", e)
             return None
         return int(total) if total > 0 else None

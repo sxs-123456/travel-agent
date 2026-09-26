@@ -388,6 +388,25 @@ def test_recommend_train_prefers_preferred_seat_price():
     assert best2["train_no"] != "D3"  # 无票价车次不会被推荐
 
 
+def test_recommend_train_does_not_choose_overnight_departure_for_lower_fare():
+    """普通白天班次应优先于凌晨班次，即使凌晨票价更低。"""
+    trains = [
+        {"train_no": "G4944", "depart_time": "01:22", "arrive_time": "02:29", "duration": "01:07",
+         "seats": [{"type": "二等座", "price": 141}], "min_price": 141},
+        {"train_no": "G100", "depart_time": "08:00", "arrive_time": "09:15", "duration": "01:15",
+         "seats": [{"type": "二等座", "price": 220}], "min_price": 220},
+    ]
+
+    best, _ = TrainTicketProvider.recommend_train(trains, "二等座")
+
+    assert best["train_no"] == "G100"
+
+    overnight, overnight_reason = TrainTicketProvider.recommend_train(trains[:1], "二等座")
+    assert overnight["train_no"] == "G4944"  # 没有白天车次时仍给出可用兜底
+    assert "凌晨出发" in overnight_reason
+    assert "午后即可到达" not in overnight_reason
+
+
 def test_rail_recommendation_models():
     """TrainRecommendation / TrainOption / TrainSeat 模型可被 pydantic 正确序列化。"""
     from backend.models.trip import TrainOption, TrainRecommendation, TrainSeat

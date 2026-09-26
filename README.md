@@ -14,9 +14,9 @@
   - 高德 POI / 天气（v3 REST）
   - **真实门票**：百度百科词条卡片 API（免费、免 key），如故宫「60元旺季/40元淡季」
   - **车次选择推荐**：12306 官方接口（直连免 key），候选车次列表 + 推荐班次 + 推荐理由
-  - 打车：百度地图驾车路线规划
+  - 市内打车：优先用百度、否则用高德路线查询距离/时长后按参考费率估价；路线不可用时不虚构金额、不计入预算；不调用网约车下单服务
   - 餐饮：按每日景点位置检索高德真实餐厅 POI 与人均消费
-  - 封面图：Pexels 免费图库（可选 key，首选）→ Openverse 开放图库（免 key，兜底）→ 无图
+  - 景点图片：优先使用 POI 返回的实景图；缺图时按“城市 + 地点”搜索 Pexels（可选 key）→ Openverse（兜底）
 - **多天行程不重复**：按天数甄选不同景区 + 跨天同名/同景区后处理去重，保证每天去不同地方。
 - **候选 ID 约束**：LLM 只选择高德 POI ID，名称、坐标和门票由后端恢复；未知 ID 不进入结果。
 - **受控修复**：草稿出现天数错误、空行程、重复或未知 ID 时，最多自动修复一次。
@@ -69,13 +69,13 @@ USE_AMAP_DRIVING_ROUTE=true   # 高德真实驾车距离/时长
 PEXELS_API_KEY=                  # 选填，启用 Pexels 封面图（留空则只用 Openverse）
 USE_RAIL_MCP=true                # 启用 12306 真实火车票
 RAIL_MCP_SEAT_CLASS=二等座
-BAIDU_MAP_AK=                    # 选填，启用百度打车真实距离/时长估算
+BAIDU_MAP_AK=                    # 选填，优先使用百度路线；缺失时使用 AMAP_API_KEY 查询路线
 ```
 
 `frontend/.env`：
 ```ini
-VITE_AMAP_KEY=                   # 选填，启用高德 JS API 可视化地图
-VITE_AMAP_SECURITY_CODE=
+VITE_AMAP_KEY=                   # 本地构建时选填；线上也可用 AMAP_JS_API_KEY 运行时配置
+VITE_AMAP_SECURITY_CODE=         # 本地构建时选填；线上也可用 AMAP_JS_API_SECURITY_CODE
 ```
 
 **完全免费、免 key 的数据源**：门票（百度百科）、封面图（Openverse）、火车票（12306 直连）。Pexels 为可选增强（免费 key，200 次/时）。

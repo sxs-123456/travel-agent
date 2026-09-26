@@ -32,6 +32,7 @@ def _parse_pois(data: dict) -> list[dict]:
         except ValueError:
             continue
         biz = poi.get("biz_ext") or {}
+        image_url = _first_poi_photo(poi)
         cost = 0
         if biz.get("cost"):
             try:
@@ -47,8 +48,29 @@ def _parse_pois(data: dict) -> list[dict]:
             ),
             "ticket_price": cost,
             "description": poi.get("type", "") or poi.get("address", ""),
+            "image_url": image_url,
+            "image_source": "高德 POI" if image_url else None,
         })
     return results
+
+
+def _first_poi_photo(poi: dict) -> str | None:
+    """读取 POI 接口附带的实景照片；没有照片时由图库搜索补充。"""
+    photos = poi.get("photos") or []
+    if isinstance(photos, dict):
+        photos = [photos]
+    if not isinstance(photos, list):
+        return None
+    for photo in photos:
+        if isinstance(photo, str):
+            url = photo
+        elif isinstance(photo, dict):
+            url = photo.get("url") or photo.get("photo_url")
+        else:
+            continue
+        if isinstance(url, str) and url.startswith("https://"):
+            return url
+    return None
 
 
 def _parse_weather(data: dict, days: int) -> list[WeatherInfo]:
@@ -248,7 +270,7 @@ def hotel_search(city: str, keywords: str = "酒店", limit: int = 10, tier: str
     返回结构（与 text_search 对齐）：
       {name, location(Location), address, level(档次), rating(评分),
        price_estimate(参考估算价), price_source}
-    封面图不再取自高德，由 planner 统一用 Pexels/Openverse 补。
+    若 POI 返回 photos 字段则保留照片 URL，缺图时由 planner 统一补充。
 
     tier（可选）：住宿档次（豪华/高档/舒适/经济/青年）。传入后：
       1. 用高德能命中的检索词替换字面关键词（避免「豪华型酒店」搜出经济型）；
@@ -274,7 +296,7 @@ def hotel_search(city: str, keywords: str = "酒店", limit: int = 10, tier: str
         "region": city,
         "types": "100000",  # 住宿服务大类
         "page_size": str(limit),
-        "show_fields": "business",
+        "show_fields": "business,photos",
     }
     resp = httpx.get(
         "https://restapi.amap.com/v5/place/text", params=params, timeout=10
@@ -303,6 +325,7 @@ def hotel_search(city: str, keywords: str = "酒店", limit: int = 10, tier: str
             rating = None
         level = biz.get("keytag") or biz.get("rectag") or None
         price = estimate_hotel_price(level, rating, city)
+        image_url = _first_poi_photo(poi)
         results.append({
             "name": poi.get("name", ""),
             "location": Location(
@@ -313,6 +336,8 @@ def hotel_search(city: str, keywords: str = "酒店", limit: int = 10, tier: str
             "rating": rating,
             "price_estimate": price,
             "price_source": "参考估算（免费接口无真实房价，按档次/评分粗算，以携程/美团实际为准）",
+            "image_url": image_url,
+            "image_source": "高德 POI" if image_url else None,
         })
 
     # 按档次过滤：仅保留 level 命中目标档次关键字的酒店；命中不足 2 家则保留全部原始结果。
