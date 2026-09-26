@@ -74,12 +74,17 @@ button { cursor: pointer; }
   text-align: left;
   background: rgba(249,245,237,.92);
   box-shadow: 0 16px 40px rgba(81,67,48,.1), inset 0 1px 0 #fff;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.prompt-form:focus-within {
+  border-color: #a36a49;
+  box-shadow: 0 16px 40px rgba(81,67,48,.1), 0 0 0 3px rgba(163,106,73,.14);
 }
 .prompt-input {
   display: block;
   resize: none;
   width: 100%;
-  min-height: 118px;
+  min-height: 106px;
   padding: 6px 4px;
   outline: none;
   border: 0;
@@ -88,9 +93,8 @@ button { cursor: pointer; }
   font-size: clamp(17px, 2.15vw, 22px);
   line-height: 1.65;
 }
-.prompt-input:focus-visible { outline: 2px solid #a36a49; outline-offset: 8px; border-radius: 8px; }
 .prompt-input:disabled { opacity: .65; cursor: wait; }
-.prompt-bottom { display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+.prompt-bottom { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding-top: 12px; }
 .prompt-hint { margin: 0; max-width: 395px; color: #746b60; font-size: 12px; line-height: 1.6; }
 .prompt-hint span { display: block; margin-top: 5px; color: #968b7d; }
 .prompt-submit {
@@ -111,6 +115,7 @@ button { cursor: pointer; }
 }
 .prompt-submit:not(:disabled):hover { transform: translateY(-2px); background: #5a3928; }
 .prompt-submit:disabled { opacity: .8; cursor: not-allowed; }
+.prompt-submit:focus-visible { outline: 2px solid #a36a49; outline-offset: 3px; }
 .prompt-spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.45); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
 .prompt-error { margin: 15px 0 0; color: #a0382e; font-size: 13px; line-height: 1.5; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -169,10 +174,11 @@ button { cursor: pointer; }
   .hero-illustration { object-position: 50% bottom; }
   .hero-content { padding: 88px 17px 200px; }
   .hero h1 { font-size: clamp(49px, 12vw, 68px); margin: 19px 0; }
+  .hero h1 em { display: block; }
   .hero-lead { font-size: 15px; }
   .hero-lead br { display: none; }
   .prompt-form { margin-top: 33px; padding: 21px 20px 20px; border-radius: 25px; }
-  .prompt-input { min-height: 170px; font-size: 17px; }
+  .prompt-input { min-height: 132px; font-size: 17px; }
   .prompt-bottom { align-items: stretch; flex-direction: column; gap: 15px; }
   .prompt-hint { font-size: 11px; }
   .prompt-submit { width: 100%; min-height: 51px; }
