@@ -240,11 +240,33 @@ def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
     )
     with pytest.raises(intent.TripIntentError) as exc_info:
         intent.parse_trip_intent("travel from Shanghai to Beijing")
-    assert exc_info.value.missing_fields == ["start_date", "end_date"]
+    assert exc_info.value.missing_fields == [
+        "city", "origin_city", "start_date", "end_date",
+        "travelers", "budget_level", "preferences",
+    ]
 
-    chain.result = intent.TripIntent(city="北京", start_date="2026-10-07", end_date="2026-10-01")
+    # Exact regression: selected dates plus two cities are still insufficient.
+    # Common model defaults must be rejected and returned as follow-up fields.
+    chain.result = intent.TripIntent(
+        city="北京", origin_city="上海",
+        start_date="2026-10-01", end_date="2026-10-04",
+        travelers=1, budget_level="中等", preferences="热门景点、美食",
+    )
+    with pytest.raises(intent.TripIntentError) as exc_info:
+        intent.parse_trip_intent(
+            "上海到北京游玩",
+            start_date_override="2026-10-01",
+            end_date_override="2026-10-04",
+        )
+    assert exc_info.value.missing_fields == ["travelers", "budget_level", "preferences"]
+
+    chain.result = intent.TripIntent(
+        city="北京", origin_city="上海",
+        start_date="2026-10-07", end_date="2026-10-01",
+        travelers=1, budget_level="中等", preferences="美食",
+    )
     with pytest.raises(intent.TripIntentError, match="返程日期不能早于出发日期"):
-        intent.parse_trip_intent("十月七号到十月一号去北京")
+        intent.parse_trip_intent("一个人十月七号到十月一号从上海去北京，喜欢美食，中等预算")
 
 
 def test_intent_json_fallback_accepts_observed_provider_shape(monkeypatch):
@@ -256,6 +278,7 @@ def test_intent_json_fallback_accepts_observed_provider_shape(monkeypatch):
         "end_date": "2026-10-04",
         "budget": "豪华",
         "preferences": ["美食"],
+        "travelers": 1,
     }
     fallback_prompts = []
 
@@ -275,7 +298,7 @@ def test_intent_json_fallback_accepts_observed_provider_shape(monkeypatch):
     monkeypatch.setattr(intent, "get_llm", lambda **_kwargs: FakeLlm())
     request = intent.parse_trip_intent(
         "计划一份十月一号到十月四号四天三晚的南京游玩攻略，"
-        "从上海出发，爱好美食预算充足"
+        "一个人从上海出发，爱好美食预算充足"
     )
 
     assert request.city == "南京"

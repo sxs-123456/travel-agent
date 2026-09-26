@@ -20,11 +20,30 @@ _DATE_EVIDENCE_RE = re.compile(
     r"[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+(?:\u65e5|\u53f7)?"
     r"|(?:\u4eca\u5929|\u660e\u5929|\u540e\u5929|\u5927\u540e\u5929|\u672c\u5468|\u4e0b\u5468|\u5468\u672b)"
 )
+_TRAVELER_EVIDENCE_RE = re.compile(
+    r"(?:\d+|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u4e24]+)\s*"
+    r"(?:\u4eba|\u4f4d)"
+    r"|(?:\u72ec\u81ea|\u4e00\u4e2a\u4eba|\u5355\u4eba|\u60c5\u4fa3|\u592b\u59bb|\u4e00\u5bb6)"
+)
+_BUDGET_EVIDENCE_RE = re.compile(
+    r"(?:\u9884\u7b97|\u7ecf\u6d4e|\u7701\u94b1|\u5b9e\u60e0|\u4e2d\u7b49|\u8212\u9002|\u8c6a\u534e|\u5145\u8db3|\u6709\u9650|\u4e0d\u5dee\u94b1)"
+)
+_PREFERENCE_EVIDENCE_RE = re.compile(
+    r"(?:\u559c\u6b22|\u504f\u597d|\u7231\u597d|\u60f3\u901b|\u60f3\u770b|\u60f3\u5403|\u60f3\u53bb)"
+    r"|(?:\u7f8e\u98df|\u81ea\u7136|\u5386\u53f2|\u6587\u5316|\u535a\u7269\u9986|\u4eb2\u5b50|\u8d2d\u7269|\u6444\u5f71|\u5f92\u6b65|\u5496\u5561|\u591c\u666f|\u53e4\u9547|\u6d77\u8fb9|\u722c\u5c71)"
+)
 
 
 def _has_date_evidence(query: str) -> bool:
     """Return whether the user supplied any recognizable travel date."""
     return bool(_DATE_EVIDENCE_RE.search(query))
+
+
+def _mentions_place(query: str, place: str | None) -> bool:
+    if not place:
+        return False
+    normalized = re.sub(r"(?:\u5e02|\u5730\u533a)$", "", place.strip())
+    return bool(normalized and normalized in query)
 
 
 class TripIntent(BaseModel):
@@ -112,23 +131,44 @@ def parse_trip_intent(
     elif not has_text_date:
         intent.end_date = None
 
+    # Structured fields must be supported by the user's own words. This prevents
+    # providers from silently filling common defaults even when prompted not to.
+    if not _mentions_place(query, intent.city):
+        intent.city = None
+    if not _mentions_place(query, intent.origin_city):
+        intent.origin_city = None
+    if not _TRAVELER_EVIDENCE_RE.search(query):
+        intent.travelers = None
+    if not _BUDGET_EVIDENCE_RE.search(query):
+        intent.budget_level = None
+    if not _PREFERENCE_EVIDENCE_RE.search(query):
+        intent.preferences = None
+
     missing: list[tuple[str, str]] = []
     if not (intent.city or "").strip():
         missing.append(("city", "\u76ee\u7684\u5730\u57ce\u5e02"))
+    if not (intent.origin_city or "").strip():
+        missing.append(("origin_city", "\u51fa\u53d1\u57ce\u5e02"))
     if not intent.start_date:
         missing.append(("start_date", "\u51fa\u53d1\u65e5\u671f"))
     if not intent.end_date:
         missing.append(("end_date", "\u8fd4\u7a0b\u65e5\u671f"))
+    if intent.travelers is None:
+        missing.append(("travelers", "\u51fa\u884c\u4eba\u6570"))
+    if not intent.budget_level:
+        missing.append(("budget_level", "\u9884\u7b97\u7b49\u7ea7"))
+    if not (intent.preferences or "").strip():
+        missing.append(("preferences", "\u6e38\u73a9\u504f\u597d"))
     if missing:
         labels = "\u3001".join(label for _, label in missing)
         raise TripIntentError(
             "\u8bf7\u8865\u5145"
             + labels
-            + "\u3002\u4e3a\u4e86\u751f\u6210\u5b8c\u6574\u653b\u7565\uff0c\u4f60\u53ef\u4ee5\u76f4\u63a5\u8865\u5145\u6587\u5b57\uff0c\u6216\u4f7f\u7528\u4e0b\u65b9\u65e5\u671f\u9009\u62e9\u5668\u3002",
+            + "\u3002\u8bf7\u5728\u8f93\u5165\u6846\u4e2d\u7ee7\u7eed\u8865\u5145\uff1b\u65e5\u671f\u4e5f\u53ef\u4f7f\u7528\u4e0b\u65b9\u65e5\u671f\u9009\u62e9\u5668\u3002",
             [field for field, _ in missing],
         )
 
-    budget = intent.budget_level or "\u4e2d\u7b49"
+    budget = intent.budget_level
     if budget not in {"\u7ecf\u6d4e", "\u4e2d\u7b49", "\u8c6a\u534e"}:
         raise TripIntentError(
             "\u9884\u7b97\u7b49\u7ea7\u65e0\u6cd5\u8bc6\u522b\uff0c\u8bf7\u63cf\u8ff0\u4e3a\u7ecf\u6d4e\u3001\u4e2d\u7b49\u6216\u8c6a\u534e\u3002"
@@ -137,12 +177,12 @@ def parse_trip_intent(
     try:
         return TripPlanRequest.model_validate({
             "city": intent.city,
-            "origin_city": (intent.origin_city or "").strip(),
+            "origin_city": intent.origin_city.strip(),
             "start_date": intent.start_date,
             "end_date": intent.end_date,
-            "preferences": (intent.preferences or "\u70ed\u95e8\u666f\u70b9\u3001\u7f8e\u98df").strip(),
+            "preferences": intent.preferences.strip(),
             "budget_level": budget,
-            "travelers": intent.travelers if intent.travelers is not None else 1,
+            "travelers": intent.travelers,
         })
     except ValidationError as exc:
         messages = [str(error["msg"]).removeprefix("Value error, ") for error in exc.errors()]
