@@ -14,7 +14,7 @@
   - 高德 POI / 天气（v3 REST）
   - **真实门票**：百度百科词条卡片 API（免费、免 key），如故宫「60元旺季/40元淡季」
   - **车次选择推荐**：12306 官方接口（直连免 key），候选车次列表 + 推荐班次 + 推荐理由
-  - 市内打车：优先用百度、否则用高德路线查询距离/时长后按参考费率估价；路线不可用时不虚构金额、不计入预算；不调用网约车下单服务
+  - 市内交通：高德公交路线提供地铁/公交建议与票价；缺少票价时按乘车段数保守估算
   - 餐饮：按每日景点位置检索高德真实餐厅 POI 与人均消费
   - 景点图片：优先使用 POI 返回的实景图；缺图时按“城市 + 地点”搜索 Pexels（可选 key）→ Openverse（兜底）
 - **多天行程不重复**：按天数甄选不同景区 + 跨天同名/同景区后处理去重，保证每天去不同地方。
@@ -39,7 +39,7 @@
 trip-planner-agent/
 ├── backend/
 │   ├── agents/             # 四个专属 Agent + base
-│   ├── tools/              # 高德 / Openverse / 12306 / 百度打车 / 百度百科
+│   ├── tools/              # 高德 / Openverse / 12306 / 百度百科
 │   ├── models/             # Pydantic 数据模型（trip）
 │   ├── api/main.py         # FastAPI 路由 + 静态托管前端
 │   ├── rail_client.py      # 12306 客户端门面
@@ -69,7 +69,6 @@ USE_AMAP_DRIVING_ROUTE=true   # 高德真实驾车距离/时长
 PEXELS_API_KEY=                  # 选填，启用 Pexels 封面图（留空则只用 Openverse）
 USE_RAIL_MCP=true                # 启用 12306 真实火车票
 RAIL_MCP_SEAT_CLASS=二等座
-BAIDU_MAP_AK=                    # 选填，优先使用百度路线；缺失时使用 AMAP_API_KEY 查询路线
 ```
 
 `frontend/.env` 仅在前后端分开部署时设置 `VITE_API_BASE`；同源部署无需配置。

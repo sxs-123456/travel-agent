@@ -154,6 +154,10 @@ class DayPlan(BaseModel):
     transit_advice: List[str] = Field(
         default_factory=list, description="当日各段地铁、公交或步行出行建议"
     )
+    transit_cost: int = Field(0, ge=0, description="当日地铁/公交单人费用（元）")
+    transit_cost_is_estimated: bool = Field(
+        True, description="地铁/公交费用是否为无票价时的参考估算"
+    )
     notes: str = Field("", description="当日备注/路线提示")
 
 
@@ -166,17 +170,12 @@ class Budget(BaseModel):
     transport_total: int = Field(0, ge=0, description="交通合计（= 城际 + 市内）")
     # 城际交通（火车票往返）；未启用 12306 时为 0。
     rail_total: int = Field(0, ge=0, description="城际交通（火车票）")
-    # 市内交通（打车/短驳）；只有地图路线可用时才计入参考价。
-    taxi_total: int = Field(0, ge=0, description="市内交通（打车/短驳）")
+    local_transit_total: int = Field(0, ge=0, description="市内地铁/公交费用")
     rail_is_estimated: bool = Field(
         True, description="城际交通是否为估算（true=估算；false=来自 12306 真实票价）"
     )
-    taxi_is_estimated: bool = Field(
-        True,
-        description=(
-            "true=未获得地图路线，市内打车不计入预算；false=地图路线距离/时长套费率的参考价，"
-            "非实时叫车报价"
-        ),
+    local_transit_is_estimated: bool = Field(
+        True, description="市内地铁/公交费用是否包含参考估算"
     )
     transport_is_estimated: bool = Field(
         True, description="交通整体是否含估价（市内路线换算车费也属于参考估价）"

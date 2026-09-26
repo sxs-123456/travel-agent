@@ -30,8 +30,6 @@ class Settings:
         # Pexels 免费图库（封面图首选，选填）：留空则跳过、自动落到 Openverse 兜底，
         # 不影响「免 key 也能跑」。
         self.pexels_api_key: str = os.getenv("PEXELS_API_KEY", "")
-        # 百度地图服务端 AK（选填，优先用于市内路线；缺失时可用 AMAP_API_KEY 估路线）。
-        self.baidu_map_ak: str = os.getenv("BAIDU_MAP_AK", "")
         # 启用 12306 真实火车票票价（直连官方接口，免 key 免 npx）。
         # 默认启用；设为 false 会跳过车次/票价查询，火车票不计入预算。
         self.use_rail_mcp: bool = os.getenv("USE_RAIL_MCP", "true").lower() in (

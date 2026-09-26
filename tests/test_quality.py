@@ -214,7 +214,6 @@ def test_planner_retries_invalid_draft_once(monkeypatch):
     monkeypatch.setattr(module, "structured_chain", lambda *args: chain)
     monkeypatch.setattr(module, "recommend_restaurants", lambda days: {})
     monkeypatch.setattr(settings, "use_rail_mcp", False)
-    monkeypatch.setattr(settings, "baidu_map_ak", "")
     result = PlannerAgent().run(request(), attrs, [], [])
     assert chain.calls == 2
     assert [[a.source_id for a in day.attractions] for day in result.days] == [

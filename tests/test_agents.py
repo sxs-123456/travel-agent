@@ -259,7 +259,7 @@ def test_structured_chain_retries_on_missing_required_field():
     assert out.items
 
 
-# ----- 预算由真实数据计算（门票/餐饮按人头，酒店按间夜；路线缺失不虚估打车费）-----
+# ----- 预算由真实数据计算（门票/餐饮按人头，酒店按间夜，市内公共交通按线路）-----
 def test_compute_budget_real():
     req = TripPlanRequest(
         city="杭州",
@@ -281,14 +281,14 @@ def test_compute_budget_real():
     )]
     b = PlannerAgent._compute_budget(req, days, days[0].hotel)
     # 门票 (80+75)*2=310，餐饮 200*2=400，酒店 900*1晚=900（2 天行程 = 1 晚）；
-    # 无地图路线时不编造市内打车金额；总计 310+400+900=1610
+    # 当日无公共交通费用；总计 310+400+900=1610
     assert b.ticket_total == 310
     assert b.meal_total == 400
     assert b.hotel_total == 900
     assert b.transport_total == 0
     assert b.rail_total == 0
-    assert b.taxi_total == 0
-    assert b.taxi_is_estimated is True
+    assert b.local_transit_total == 0
+    assert b.local_transit_is_estimated is False
     assert b.total == 1610
 
 
@@ -392,15 +392,15 @@ def test_compute_budget_with_12306_transport():
     )
     assert b.rail_total == 2400
     assert b.rail_is_estimated is False
-    assert b.taxi_total == 0
-    assert b.taxi_is_estimated is True
+    assert b.local_transit_total == 0
+    assert b.local_transit_is_estimated is False
     assert b.transport_total == 2400
     assert b.transport_is_estimated is False  # 城际票价真实；未取得的市内费用未计入
     assert b.total == (80 * 2) + (200 * 2) + 900 + 2400
 
 
-def test_compute_budget_with_taxi():
-    """接入百度打车真实估算时，市内交通用真实值。"""
+def test_compute_budget_with_local_transit():
+    """市内地铁/公交按每日单人费用乘出行人数计入预算。"""
     req = TripPlanRequest(
         city="杭州", start_date="2026-10-01", end_date="2026-10-02",
         travelers=2, budget_level="中等",
@@ -412,16 +412,17 @@ def test_compute_budget_with_taxi():
         meals=[Meal(name="楼外楼", location=loc, price=200)],
         hotel=Hotel(name="H", location=loc, price_per_night=900),
     )]
+    days[0].transit_cost = 10
+    days[0].transit_cost_is_estimated = True
     b = PlannerAgent._compute_budget(
         req, days, days[0].hotel, rail=2400, rail_is_estimated=False,
-        taxi=120, taxi_is_estimated=False,
     )
     assert b.rail_total == 2400
-    assert b.taxi_total == 120
-    assert b.taxi_is_estimated is False
-    assert b.transport_total == 2520
+    assert b.local_transit_total == 20
+    assert b.local_transit_is_estimated is True
+    assert b.transport_total == 2420
     assert b.transport_is_estimated is True  # 12306 车票真实；市内车费仍是路线参考价
-    assert b.total == (80 * 2) + (200 * 2) + 900 + 2520
+    assert b.total == (80 * 2) + (200 * 2) + 900 + 2420
 
 
 # ----- 多天行程防重复：跨天同名/同景区景点必须被去重 -----

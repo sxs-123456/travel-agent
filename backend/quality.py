@@ -31,7 +31,7 @@ def evaluate_plan(request: TripPlanRequest, plan: TripPlan) -> dict:
         issues.append("missing_budget")
     elif (budget.total != budget.ticket_total + budget.hotel_total
           + budget.meal_total + budget.transport_total
-          or budget.transport_total != budget.rail_total + budget.taxi_total):
+          or budget.transport_total != budget.rail_total + budget.local_transit_total):
         issues.append("budget_inconsistent")
     weather_dates = {w.date for w in plan.weather_info}
     return {

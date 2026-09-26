@@ -6,7 +6,6 @@ import concurrent.futures as futures
 from datetime import date as _date
 from datetime import timedelta as _timedelta
 from math import asin, cos, radians, sin, sqrt
-
 from pydantic import BaseModel, Field
 
 from backend.models.trip import (
@@ -232,9 +231,13 @@ class PlannerAgent:
                 day.transit_advice = [
                     "\u5f53\u5929\u884c\u7a0b\u8f83\u5c11\uff0c\u5efa\u8bae\u7ed3\u5408\u5b9e\u65f6\u5bfc\u822a\u9009\u62e9\u6b65\u884c\u3001\u5730\u94c1\u6216\u516c\u4ea4\u3002"
                 ]
+                day.transit_cost = 0
+                day.transit_cost_is_estimated = False
                 continue
 
             advice: list[str] = []
+            total_cost = 0.0
+            has_estimated_cost = False
             for (from_name, origin), (to_name, destination) in zip(stops, stops[1:]):
                 distance = cls._haversine_km(origin, destination)
                 try:
@@ -242,6 +245,19 @@ class PlannerAgent:
                     lines = [str(item) for item in route.get("lines", [])]
                     duration = int(float(route.get("duration_min", 0)))
                     walking = float(route.get("walking_km", 0))
+                    raw_cost = route.get("cost")
+                    if raw_cost is not None and float(raw_cost) > 0:
+                        fare = float(raw_cost)
+                        fare_is_estimated = False
+                    elif lines:
+                        fare = max(2.0, 2.0 + max(0, len(lines) - 1) * 2.0)
+                        fare_is_estimated = True
+                    elif distance > 1.5:
+                        fare = 4.0
+                        fare_is_estimated = True
+                    else:
+                        fare = 0.0
+                        fare_is_estimated = False
                     if lines:
                         method = " -> ".join(lines[:3])
                         detail = (
@@ -250,25 +266,37 @@ class PlannerAgent:
                         )
                         if walking > 0:
                             detail += f"\uff0c\u5176\u4e2d\u6b65\u884c\u7ea6 {walking:.1f} \u516c\u91cc"
+                        detail += f"\uff0c\u7968\u4ef7\u7ea6 \u00a5{fare:.0f}/\u4eba"
                     else:
                         detail = (
                             f"{from_name} -> {to_name}\uff1a\u516c\u4ea4\u51fa\u884c\u7ea6 {duration} \u5206\u949f\uff0c"
                             f"\u6b65\u884c\u7ea6 {walking:.1f} \u516c\u91cc\uff0c\u5177\u4f53\u73ed\u6b21\u4ee5\u5b9e\u65f6\u5bfc\u822a\u4e3a\u51c6"
                         )
+                        if fare > 0:
+                            detail += f"\uff0c\u7968\u4ef7\u53c2\u8003 \u00a5{fare:.0f}/\u4eba"
                 except Exception as exc:  # noqa: BLE001 - each leg has a useful fallback
                     logger.info("Day%d transit route fallback: %s", day.day, exc)
                     if distance <= 1.5:
+                        fare = 0.0
+                        fare_is_estimated = False
                         detail = (
                             f"{from_name} -> {to_name}\uff1a\u76f8\u8ddd\u7ea6 {distance:.1f} \u516c\u91cc\uff0c"
                             "\u5efa\u8bae\u6b65\u884c\u6216\u9a91\u884c"
                         )
                     else:
+                        fare = 4.0
+                        fare_is_estimated = True
                         detail = (
                             f"{from_name} -> {to_name}\uff1a\u76f8\u8ddd\u7ea6 {distance:.1f} \u516c\u91cc\uff0c"
-                            "\u5efa\u8bae\u4f18\u5148\u4e58\u5750\u5730\u94c1\u6216\u516c\u4ea4\uff0c\u5177\u4f53\u7ebf\u8def\u4ee5\u5b9e\u65f6\u5bfc\u822a\u4e3a\u51c6"
+                            "\u5efa\u8bae\u4f18\u5148\u4e58\u5750\u5730\u94c1\u6216\u516c\u4ea4\uff0c\u7968\u4ef7\u53c2\u8003 \u00a54/\u4eba\uff0c"
+                            "\u5177\u4f53\u7ebf\u8def\u4ee5\u5b9e\u65f6\u5bfc\u822a\u4e3a\u51c6"
                         )
                 advice.append(detail)
+                total_cost += fare
+                has_estimated_cost = has_estimated_cost or fare_is_estimated
             day.transit_advice = advice
+            day.transit_cost = round(total_cost)
+            day.transit_cost_is_estimated = has_estimated_cost
 
     @staticmethod
     def _dedupe_attractions_across_days(plan: TripPlan) -> None:
@@ -372,13 +400,12 @@ class PlannerAgent:
         return self._build_with_llm(request, attractions, weather, hotels)
 
     @staticmethod
-    def _compute_budget(request, days, hotel, rail=None, taxi=None,
-                        rail_is_estimated=True, taxi_is_estimated=True) -> Budget:
+    def _compute_budget(request, days, hotel, rail=None, rail_is_estimated=True) -> Budget:
         # 预算完全由真实数据计算得到，不依赖 LLM 生成。
         # 门票/餐饮按人头计；酒店按间夜计（一间房可多人入住，不乘人数）；
-        # 交通分「城际(rail，火车票往返)」与「市内(taxi，打车/短驳)」两部分：
+        # 交通分「城际(rail，火车票往返)」与「市内地铁/公交」两部分：
         #   - rail 传真实票价(12306)则用真实值，否则为 0（未启用城际）；
-        #   - taxi 仅在地图返回路线时计入参考价；路线不可用时不虚构金额。
+        #   - 市内交通优先使用高德公交票价，缺失时按乘车段数保守估算。
         ticket = sum(a.ticket_price for d in days for a in d.attractions) * request.travelers
         meal = sum(m.price for d in days for m in d.meals) * request.travelers
         # 酒店间夜数 = 行程天数 - 1（23 号出发、25 号返程 = 2 晚，不是 3 晚）；
@@ -394,13 +421,15 @@ class PlannerAgent:
         hotel_total = (hotel.price_per_night if hotel else 0) * nights * rooms
         if rail is None:
             rail = 0
-        if taxi is None:
-            taxi = 0
-            taxi_is_estimated = True
-        transport = rail + taxi
-        # 地图路程数据是真实的，但按固定费率换算的车费仍是参考估价。
-        # 仅当金额已计入且其中有估值时才标记；缺失项目已从总计排除。
-        transport_is_estimated = bool(rail and rail_is_estimated) or bool(taxi)
+        local_transit = sum(day.transit_cost for day in days) * request.travelers
+        local_transit_is_estimated = any(
+            day.transit_cost > 0 and day.transit_cost_is_estimated for day in days
+        )
+        transport = rail + local_transit
+        transport_is_estimated = (
+            bool(rail and rail_is_estimated)
+            or bool(local_transit and local_transit_is_estimated)
+        )
         total = ticket + meal + hotel_total + transport
         return Budget(
             ticket_total=ticket,
@@ -408,9 +437,9 @@ class PlannerAgent:
             meal_total=meal,
             transport_total=transport,
             rail_total=rail,
-            taxi_total=taxi,
+            local_transit_total=local_transit,
             rail_is_estimated=rail_is_estimated,
-            taxi_is_estimated=taxi_is_estimated,
+            local_transit_is_estimated=local_transit_is_estimated,
             transport_is_estimated=transport_is_estimated,
             total=total,
             travelers=request.travelers,
@@ -523,15 +552,9 @@ class PlannerAgent:
         elif not request.origin_city:
             train_note = "未填写出发城市，未查询 12306；火车票未计入总预算。填写出发城市后可查询票价与车次。"
 
-        # 市内交通：百度或高德地图路线估价；路线不可用时不计入预算。
-        taxi = self._estimate_city_taxi(plan.days, hotel)
-        # false 表示已按地图路线距离/时长估价；这仍是参考价，不是实时叫车报价。
-        taxi_is_estimated = taxi is None
-
         plan.budget = self._compute_budget(
             request, plan.days, hotel,
-            rail=rail, taxi=taxi,
-            rail_is_estimated=rail_is_estimated, taxi_is_estimated=taxi_is_estimated,
+            rail=rail, rail_is_estimated=rail_is_estimated,
         )
         plan.train_info = train_info
         plan.train_note = train_note
@@ -640,55 +663,3 @@ class PlannerAgent:
         ]
         train["min_price"] = min(priced) if priced else None
         return train
-
-    @staticmethod
-    def _estimate_city_taxi(days: list[DayPlan], hotel: Hotel | None) -> int | None:
-        """市内打车参考价：每天「酒店 ↔ 当天首个景点」往返（单程 × 2）。
-
-        优先使用百度路线；百度未配置或失败时使用已有的高德路线 Key。
-        两者都不可用 / 无酒店 / 任一天路线估算失败时返回 None，由调用方回退按天粗估。
-        """
-        if not hotel or (not settings.baidu_map_ak and not settings.use_real_amap):
-            return None
-        from backend.tools.taxi import BaiduRideProvider, estimate_fare
-
-        provider = BaiduRideProvider() if settings.baidu_map_ak else None
-        active_days = [day for day in days if day.attractions]
-        if not active_days:
-            return None
-
-        def estimate(day: DayPlan) -> float:
-            first = day.attractions[0]
-            result = None
-            if provider:
-                try:
-                    result = provider.estimate_ride_by_coords(
-                        hotel.location.latitude, hotel.location.longitude,
-                        first.location.latitude, first.location.longitude,
-                        start_label="酒店", end_label=first.name,
-                    )
-                except Exception:
-                    if not settings.use_real_amap:
-                        raise
-            if result is None and settings.use_real_amap:
-                from backend.tools.amap import driving_route
-
-                route = driving_route(hotel.location, first.location)
-                result = estimate_fare(
-                    "酒店", first.name,
-                    float(route["distance_km"]) * 1000,
-                    float(route["duration_min"]) * 60,
-                    city="", to_label=first.name,
-                )
-            if result is None:
-                raise RuntimeError("没有可用的地图路线服务")
-            return float(result["estimated_fare"]) * 2
-
-        try:
-            with futures.ThreadPoolExecutor(max_workers=min(4, len(active_days))) as executor:
-                fares = list(executor.map(estimate, active_days))
-            total = sum(fares)
-        except Exception as e:
-            logger.warning("市内打车路线估价失败，费用未计入预算：%s", e)
-            return None
-        return int(total) if total > 0 else None

@@ -191,7 +191,7 @@ def driving_route(origin: Location, destination: Location) -> dict[str, float | 
 
 def transit_route(
     origin: Location, destination: Location, city: str
-) -> dict[str, float | list[str] | str]:
+) -> dict[str, float | list[str] | str | None]:
     """Query AMap public transit directions and return a compact route summary."""
     if not settings.use_real_amap:
         raise RuntimeError("AMAP_API_KEY is required for transit directions")
@@ -235,11 +235,14 @@ def transit_route(
     try:
         duration_min = round(float(route.get("duration") or 0) / 60)
         walking_km = round(float(route.get("walking_distance") or 0) / 1000, 1)
+        raw_cost = route.get("cost")
+        cost = round(float(raw_cost), 1) if raw_cost not in (None, "") else None
     except (TypeError, ValueError) as exc:
         raise RuntimeError("AMap returned invalid transit duration data") from exc
     return {
         "duration_min": duration_min,
         "walking_km": walking_km,
+        "cost": cost,
         "lines": lines,
         "source": "amap_transit",
     }

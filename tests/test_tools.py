@@ -68,6 +68,7 @@ def test_amap_transit_route_parses_lines_and_walking(monkeypatch):
                 "route": {"transits": [{
                     "duration": "2100",
                     "walking_distance": "650",
+                    "cost": "4",
                     "segments": [{"bus": {"buslines": [{
                         "name": "地铁2号线(经天路-鱼嘴)",
                         "departure_stop": {"name": "新街口"},
@@ -86,6 +87,7 @@ def test_amap_transit_route_parses_lines_and_walking(monkeypatch):
     assert result == {
         "duration_min": 35,
         "walking_km": 0.7,
+        "cost": 4.0,
         "lines": ["地铁2号线 (新街口->苜蓿园)"],
         "source": "amap_transit",
     }
@@ -343,47 +345,6 @@ def test_weatherinfo_temperature_decimal():
     assert WeatherInfo(date="2026-10-01", condition="晴", temperature=23.5).temperature == 23
     assert WeatherInfo(date="2026-10-01", condition="晴", temperature="26℃").temperature == 26
     assert WeatherInfo(date="2026-10-01", condition="晴", temperature="").temperature == 0
-
-
-# ---------------------------------------------------------------------------
-# 打车估算（百度驾车路线规划 → 参考价）
-# ---------------------------------------------------------------------------
-def test_taxi_estimate_fare():
-    from backend.tools.taxi import estimate_fare
-
-    r = estimate_fare("A", "B", 10000, 1200)  # 10 km, 20 min
-    # 14 起步 + (10-3)*2.6 里程 + 20*0.5 等候 = 42.2
-    assert r["distance_km"] == 10.0
-    assert r["duration_min"] == 20.0
-    assert r["estimated_fare"] == 42.2
-
-
-def test_taxi_ride_by_coords(monkeypatch):
-    from backend.tools.taxi import BaiduRideProvider
-
-    monkeypatch.setattr(settings, "baidu_map_ak", "test-ak")
-
-    class FakeResp:
-        def raise_for_status(self):
-            pass
-
-        def json(self):
-            return {"status": 0, "result": {"routes": [{"distance": 10000, "duration": 1200}]}}
-
-    monkeypatch.setattr(httpx, "get", lambda url, **kw: FakeResp())
-    r = BaiduRideProvider().estimate_ride_by_coords(30.2, 120.1, 30.3, 120.2)
-    assert r["estimated_fare"] == 42.2
-
-
-def test_taxi_missing_key_raises(monkeypatch):
-    from backend.tools.taxi import BaiduRideProvider, TaxiApiError
-
-    monkeypatch.setattr(settings, "baidu_map_ak", "")
-    try:
-        BaiduRideProvider().estimate_ride_by_coords(30, 120, 31, 121)
-        assert False, "缺失 BAIDU_MAP_AK 应抛出 TaxiApiError"
-    except TaxiApiError as e:
-        assert "BAIDU_MAP_AK" in str(e)
 
 
 # ---------------------------------------------------------------------------

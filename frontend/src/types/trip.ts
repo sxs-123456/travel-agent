@@ -66,9 +66,9 @@ export interface Budget {
   meal_total: number;
   transport_total: number;
   rail_total?: number;
-  taxi_total?: number;
+  local_transit_total?: number;
   rail_is_estimated?: boolean;
-  taxi_is_estimated?: boolean;
+  local_transit_is_estimated?: boolean;
   transport_is_estimated?: boolean;
   total: number;
   travelers?: number;

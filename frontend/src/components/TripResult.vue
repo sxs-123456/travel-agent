@@ -38,7 +38,7 @@ function onUpdateNotes(dayIdx: number, value: string) {
 }
 
 // 删除景点/餐饮后，本地重算门票、餐饮与总计，让金额随编辑实时变化。
-// 酒店（间夜）、交通（城际火车/市内打车）不因删除景点/餐饮而变，保持原值。
+// 酒店（间夜）、交通（城际火车/地铁公交）不因删除景点/餐饮而变，保持原值。
 function recomputeBudget() {
   const b = editable.budget;
   if (!b) return;
