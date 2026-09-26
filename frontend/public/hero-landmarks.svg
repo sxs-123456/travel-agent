@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 900" role="img" aria-label="Original hand-drawn travel landmarks on warm ivory paper"><defs>
+<linearGradient id="paper" x2="0" y2="1"><stop stop-color="#faf8f2"/><stop offset=".7" stop-color="#f5f0e6"/><stop offset="1" stop-color="#e8decc"/></linearGradient>
+<linearGradient id="rust" x2="0" y2="1"><stop stop-color="#bb7755"/><stop offset="1" stop-color="#89513e"/></linearGradient>
+<linearGradient id="limestone" x2="0" y2="1"><stop stop-color="#f0e7d3"/><stop offset="1" stop-color="#c8b99a"/></linearGradient>
+<pattern id="speckle" width="41" height="37" patternUnits="userSpaceOnUse"><circle cx="5" cy="8" r=".7" fill="#816b51" opacity=".34"/><circle cx="29" cy="26" r=".55" fill="#816b51" opacity=".3"/></pattern>
+<pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(-18)"><path d="M0 0V10" stroke="#4a3f33" stroke-width=".8" opacity=".16"/></pattern>
+<filter id="grain"><feTurbulence type="fractalNoise" baseFrequency=".34" numOctaves="2" seed="18" stitchTiles="stitch"/><feColorMatrix type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".075"/></feComponentTransfer></filter>
+<symbol id="arch" viewBox="0 0 26 45"><path d="M2 44V16C2 8 7 3 13 3s11 5 11 13v28Z" fill="#573c30" stroke="#44352c" stroke-width="2"/><path d="M6 42V17c0-5 3-9 7-9s7 4 7 9v25" fill="none" stroke="#bb8968" stroke-width="1.6"/></symbol>
+<symbol id="tree" viewBox="0 0 80 135"><path d="M40 132V78m0 23 18-27m-18 19L24 76" fill="none" stroke="#413d31" stroke-width="4"/><path d="M41 5C15 9 5 32 9 60c4 28 16 40 32 40 23 0 34-22 33-47C72 25 60 8 41 5Z" fill="#686a50" stroke="#403e32" stroke-width="3"/><path d="M20 27c-14 22-6 49 8 60m34-65c17 24 8 51-7 66M29 33l-8 32m37-23 9 24M28 81l14 10 19-22" fill="none" stroke="#d7c8a6" stroke-width="1.5" opacity=".74"/></symbol>
+</defs>
+<rect width="1440" height="900" fill="url(#paper)"/>
+<rect width="1440" height="900" fill="url(#speckle)" opacity=".55"/>
+<rect width="1440" height="900" filter="url(#grain)" opacity=".33"/>
+<!-- Upper two thirds deliberately left open for live interface elements. -->
+<g fill="none" stroke="#bda98d" stroke-width="2" stroke-linecap="round" opacity=".25">
+<path d="M-30 521c31-22 64-22 83-5 12-26 37-29 53-9 22-10 46 3 51 19 32-5 58 2 80 14M-10 538c33-11 69-12 93 0 46-4 65 2 85 12"/>
+<path d="M1100 439c38-22 70-20 89-3 20-29 52-35 74-7 36-13 58 1 70 22 38-5 71 3 107 27M1145 456c48-10 65-3 86 6 37-6 72-2 100 9"/>
+</g>
+<path d="M0 656c106-43 186-14 285-50 96-34 183-4 266 22 96-54 184-61 277-10 95-38 182-39 290 0 114-30 220-22 322 0v282H0Z" fill="#ded4bd" opacity=".55"/>
+<path d="M0 685c129-30 231 8 346-27 112-36 207 3 293 16 100-47 194-5 289 17 79-40 164-24 233-2 97-28 196-26 279-9v220H0Z" fill="#c7b594" opacity=".48"/>
+<path d="M0 682c129-30 231 8 346-27 112-36 207 3 293 16 100-47 194-5 289 17 79-40 164-24 233-2 97-28 196-26 279-9" fill="none" stroke="#8f7e66" stroke-width="2" opacity=".36"/>
+<!-- Moss-green mountains behind the architecture. -->
+<g stroke="#443f33" stroke-linejoin="round" stroke-linecap="round">
+<path d="M673 845 750 674l32-42 29 80 48-107 44-30 39 77 37-33 89 226Z" fill="#77765a" stroke-width="4"/>
+<path d="m723 803 38-106 21-43 20 64 36-68 33-49 30 73 24-11 79 144m-254-132 16 12 16-55m77-27 21 16 23-46m-95 200 39-65m37 92 48-95" fill="none" stroke="#d6c8a5" stroke-width="2" opacity=".8"/>
+<path d="M681 848c30-35 64-64 114-68 43-37 92-43 133-23 50-32 102-13 142 29v114H676Z" fill="#66654e" stroke-width="3"/>
+<path d="M702 831c56-30 75-21 110-48 45 11 79-30 119-14 49-22 94 3 111 20" fill="none" stroke="#d7c9a6" stroke-width="2" opacity=".58"/>
+</g>
+<!-- Terracotta fort with carved gate, parapets and weathered masonry. -->
+<g stroke="#4c382e" stroke-linejoin="round" stroke-linecap="round">
+<path d="M-25 900V736l31-14v-37l26-9v-59l21-7 11-47 61-5 13 47 28 11v38l37 13 8 61 30 26v146Z" fill="url(#rust)" stroke-width="4"/>
+<path d="M27 616v-37l14-4v-15l16-4v19l16-2v-21l17-2v20l18-1v-16l16 3v24l13 7v28Z" fill="#ad664a" stroke-width="3"/>
+<path d="m20 687 148 7m-139-43 120 3M11 744l178 8M4 794l201 10M0 850l211 8" fill="none" stroke="#dfaa7f" stroke-width="2.5" opacity=".75"/>
+<path d="M65 900v-78c0-21 14-34 31-34s31 13 31 34v78Z" fill="#624137" stroke-width="3"/>
+<path d="M79 900v-75c0-13 7-23 17-23s17 10 17 23v75M96 802v98" fill="none" stroke="#c88d6b" stroke-width="2"/>
+<path d="M36 757h33v33H36Zm102-8h29v39h-29ZM45 663h23v18H45Zm53-7h22v24H98Z" fill="#724b39" stroke-width="2"/>
+<path d="M-16 855 31 811l49-16 71 15 42 56M-12 878l80-50 70-1 39 39" fill="none" stroke="#633e31" stroke-width="2" opacity=".73"/>
+<path d="M45 611c21-7 61-8 83 2m-84 126 71 3m-99 81 35-8" fill="none" stroke="#e9b790" stroke-width="1.5"/>
+</g>
+<!-- Two tiers of the amphitheatre arcades. -->
+<g stroke="#4b3a30" stroke-linecap="round" stroke-linejoin="round">
+<path d="M264 900 285 757c6-42 41-67 102-78 53-11 116-8 172 8 42 13 61 36 64 74l-2 139Z" fill="#bd8563" stroke-width="4"/>
+<path d="M286 756c80-42 244-55 334 1M277 812c91-43 259-46 344-4M268 866c91-35 258-39 353-10" fill="none" stroke="#e5b083" stroke-width="5"/>
+<path d="M287 749c89-37 249-46 328-7m-332 64c96-35 247-39 333-4m-343 58c101-34 259-38 343-13" fill="none" stroke="#674738" stroke-width="2"/>
+<use href="#arch" x="298" y="694" width="27" height="43"/><use href="#arch" x="332" y="694" width="27" height="43"/><use href="#arch" x="367" y="694" width="27" height="43"/><use href="#arch" x="403" y="694" width="27" height="43"/><use href="#arch" x="440" y="694" width="27" height="43"/><use href="#arch" x="477" y="694" width="27" height="43"/><use href="#arch" x="514" y="694" width="27" height="43"/><use href="#arch" x="550" y="694" width="27" height="43"/><use href="#arch" x="296" y="752" width="28" height="53"/><use href="#arch" x="334" y="752" width="28" height="53"/><use href="#arch" x="373" y="752" width="28" height="53"/><use href="#arch" x="412" y="752" width="28" height="53"/><use href="#arch" x="451" y="752" width="28" height="53"/><use href="#arch" x="490" y="752" width="28" height="53"/><use href="#arch" x="529" y="752" width="28" height="53"/><use href="#arch" x="568" y="752" width="28" height="53"/><use href="#arch" x="285" y="810" width="30" height="72"/><use href="#arch" x="327" y="810" width="30" height="72"/><use href="#arch" x="370" y="810" width="30" height="72"/><use href="#arch" x="413" y="810" width="30" height="72"/><use href="#arch" x="456" y="810" width="30" height="72"/><use href="#arch" x="499" y="810" width="30" height="72"/><use href="#arch" x="542" y="810" width="30" height="72"/><use href="#arch" x="584" y="810" width="30" height="72"/><path d="M271 897c99-15 236-17 352-6" fill="none" stroke="#594839" stroke-width="3"/></g>
+<!-- A stepped pyramid bridges the Roman stone and distant hills. -->
+<g stroke="#5b4e3b" stroke-linejoin="round" stroke-linecap="round">
+<path d="M618 900 669 788l29-2 18-30 25-1 17-29h29l16 30 27 2 17 29 31 1 49 112Z" fill="url(#limestone)" stroke-width="3"/>
+<path d="m638 857 268 2m-249-39 231 2m-211-35 190 2m-157-32 125 2" fill="none" stroke-width="2.6"/>
+<path d="m704 900 73-173 75 173" fill="#b8aa8d" stroke-width="2.5"/>
+<path d="m721 900 56-140 58 140m-104-28 96 2m-84-30 70 1m-58-31 46 2m-35-29 26 1" fill="none" stroke="#665743" stroke-width="2"/>
+<path d="m672 845 24 2m151-2 24 2m-199 37 26 2m154-2 26 2" fill="none" stroke="#8d7959" stroke-width="2"/>
+</g>
+<!-- A slender grove and uneven earth tie the skyline together. -->
+<path d="M0 900c96-51 180-38 279-36 98-14 185 10 273 19 107-41 207-32 300-7 101-36 168-39 247-6 111-30 217-31 341-8v38Z" fill="#a38a65" stroke="#564b3a" stroke-width="3"/>
+<use href="#tree" x="189" y="724" width="87" height="153"/><use href="#tree" x="934" y="728" width="64" height="124"/><use href="#tree" x="1024" y="740" width="75" height="130"/>
+<!-- Ivory dome palace, minarets, carved alcoves, central arch. -->
+<g stroke="#514a3a" stroke-linejoin="round" stroke-linecap="round">
+<path d="M1080 900v-55h292v55Z" fill="#cec1a6" stroke-width="3"/>
+<path d="M1100 845v-91h250v91Z" fill="url(#limestone)" stroke-width="3"/>
+<path d="M1128 751c-3-57 36-101 97-108 60 7 98 51 97 108Z" fill="#eee5d2" stroke-width="3"/>
+<path d="M1139 748c-3-40 21-76 55-92m62-4c36 20 58 54 55 96" fill="none" stroke="#b4a68f" stroke-width="2"/>
+<path d="M1225 643v-25m-12 6h24m-11-11v-11M1091 754h268v13h-268Z" fill="#d2c4a8" stroke-width="2"/>
+<path d="M1182 844v-53c0-27 17-43 43-43s43 16 43 43v53Z" fill="#d2c0a5" stroke-width="2.5"/>
+<path d="M1195 844v-51c0-18 12-31 30-31s30 13 30 31v51m-30-80v80" fill="#ebe0c9" stroke-width="2"/>
+<path d="M1117 827v-31c0-14 10-25 22-25s22 11 22 25v31Zm172 0v-31c0-14 10-25 22-25s22 11 22 25v31Z" fill="#89826d" stroke-width="2"/>
+<path d="M1125 826v-29c0-10 5-17 14-17s14 7 14 17v29m144 0v-29c0-10 5-17 14-17s14 7 14 17v29" fill="none" stroke="#c6b89f" stroke-width="1.5"/>
+<path d="M1070 900V733h25v167Zm285 0V733h25v167Z" fill="#e9ddc8" stroke-width="2.5"/>
+<path d="M1069 731c2-19 9-34 15-46 10 12 17 28 21 46Zm286 0c2-19 9-34 15-46 10 12 17 28 21 46Z" fill="#eee5d2" stroke-width="2"/>
+<path d="M1084 685v-20m286 20v-20M1063 734h49m238 0h50M1096 774h258m-256 65h254m-272 37h292m-282 12h271" fill="none" stroke-width="2"/>
+</g>
+<!-- A tiny lookout figure on the far-right skyline. -->
+<g stroke="#5b4b3d" stroke-linecap="round" stroke-linejoin="round">
+<circle cx="1400" cy="685" r="11" fill="#b99777" stroke-width="2"/>
+<path d="M1389 696c6-8 17-8 23 0l11 53-3 60h-42l-1-60Z" fill="#bbb198" stroke-width="2.5"/>
+<path d="m1388 704-42 18m66-18 42 18m-69 8-14 78m45-78 12 78" fill="none" stroke-width="4"/>
+<path d="m1382 763 37 5m-34 17 32 4m-30 13 27 3" fill="none" stroke="#e8dbc1" stroke-width="2"/>
+<path d="M1366 810h64l13 90h-90Z" fill="#5e5948" stroke-width="2"/>
+</g>
+<!-- Final pen hatching, grasses and vintage-paper flecks. -->
+<path d="M0 889c103-25 204-22 299 4 108-22 196-11 260 7h469c141-30 278-28 412-10v10H0Z" fill="#8f634a" opacity=".54"/>
+<g fill="none" stroke="#514637" stroke-width="2" stroke-linecap="round" opacity=".75">
+<path d="m23 897 7-22m-7 22-10-12m15 11 9-16m128 19 7-24m-5 20-11-13m22 17 9-18m387 18 5-22m-5 18-12-10m22 12 8-17m368 19 5-25m-4 18-10-11m23 13 9-18m188 20 6-21m-6 18-9-12m23 13 8-15"/>
+<path d="M0 893c40-7 69-4 105 7m230-7 70 6m145-8 63 8m220-5 63 6m231-8 68 7m129-8 52 8" stroke-width="1.4"/>
+</g><rect width="1440" height="900" fill="url(#speckle)" opacity=".11"/></svg>

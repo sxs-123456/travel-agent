@@ -61,35 +61,10 @@ async function generate(query: string) {
 
 <template>
   <div class="site-shell">
-    <header class="site-nav" :class="{ 'site-nav-result': showResult }">
-      <a class="site-brand" href="#/" aria-label="AI Trip Planner 首页">
-        <span class="site-brand-mark" aria-hidden="true">✳</span>
-        <span>漫游<span class="site-brand-dot">.</span></span>
-      </a>
-      <nav class="site-links" aria-label="主导航">
-        <template v-if="!showResult">
-          <a href="#features">了解功能</a>
-          <a href="#how-it-works">使用方法</a>
-        </template>
-        <a v-if="result" href="#/plan">我的行程</a>
-      </nav>
-      <a class="site-nav-cta" :href="showResult ? '#/' : '#planner'">
-        {{ showResult ? "重新规划" : "开始规划" }} <span aria-hidden="true">↗</span>
-      </a>
-    </header>
-
     <main v-if="!showResult">
       <section id="planner" class="hero">
-        <video class="hero-video" autoplay muted loop playsinline preload="metadata" aria-hidden="true" tabindex="-1">
-          <source src="/hero-china-karst.mp4" type="video/mp4" />
-        </video>
-        <div class="hero-atmosphere" aria-hidden="true">
-          <div class="hero-glow"></div>
-          <div class="hero-cloud hero-cloud-one"></div>
-          <div class="hero-cloud hero-cloud-two"></div>
-        </div>
+        <img class="hero-illustration" src="/hero-landmarks.svg" alt="" aria-hidden="true" />
         <div class="hero-content">
-          <span class="hero-eyebrow"><span></span> AI TRIP PLANNER</span>
           <h1>下一站，<em>去哪里？</em></h1>
           <p class="hero-lead">告诉我们你想去哪、何时出发和喜欢什么。<br />把一句旅行想法，变成一份可以查看的逐日计划。</p>
           <PlanForm
@@ -99,18 +74,7 @@ async function generate(query: string) {
             @submit="generate"
             @edit="error = ''"
           />
-          <p class="hero-assurance">目的地 · 每日路线 · 地图 · 预算参考</p>
         </div>
-        <svg class="hero-landscape" viewBox="0 0 1440 330" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
-          <path d="M0 250Q130 185 260 226T505 218Q640 174 735 218T940 201Q1100 145 1240 209T1440 197V330H0Z" fill="#9b9783" opacity=".48"/>
-          <path d="M0 284Q135 219 270 257T515 239Q640 208 742 253T946 234Q1100 185 1245 247T1440 225V330H0Z" fill="#766b58" opacity=".72"/>
-          <path d="M0 318Q160 252 320 304T615 282Q750 246 920 288T1200 268Q1320 243 1440 288V330H0Z" fill="#493e33"/>
-          <path d="M55 270l30-45 28 9 25-44 40 13 19-26 26 18 13 56m-169 19h178m-151-44v-21m47 12v-23m47-4v-20" fill="none" stroke="#312c26" stroke-width="7" stroke-linejoin="round" opacity=".62"/>
-          <path d="M1022 236l52-70 45 57 37-94 67 105m-198 1h229" fill="none" stroke="#37342c" stroke-width="8" stroke-linejoin="round" opacity=".55"/>
-          <path d="M1245 251h111m-95 0v-54h79v54m-86-54 46-38 48 38m-80-9v-18h64v18m-49-40h35m-17 0v-22" fill="none" stroke="#292923" stroke-width="7" stroke-linejoin="round" opacity=".65"/>
-          <path d="M366 294q80-75 164-24m-175 10q91-61 182-1" fill="none" stroke="#e8d4aa" stroke-width="7" opacity=".68"/>
-        </svg>
-        <div class="hero-bottom-label">为每一次出发，留一点期待。</div>
       </section>
 
       <section id="features" class="info-section">
@@ -129,13 +93,13 @@ async function generate(query: string) {
         <span class="section-kicker">HOW IT WORKS</span>
         <h2>说出你的下一段旅程。</h2>
         <p>写清目的地与出发、返程日期，就可以开始规划。细节越具体，建议越贴近你的想法。</p>
-        <a class="closing-cta" href="#planner">开始规划 <span aria-hidden="true">↗</span></a>
       </section>
     </main>
 
     <main v-else class="result-page">
       <template v-if="result">
         <div class="result-intro">
+          <a class="result-back" href="#/">← 返回首页</a>
           <span class="section-kicker">YOUR ITINERARY</span>
           <h1>你的 {{ result.request.city }} 之旅，<em>已就绪。</em></h1>
           <p class="result-original">“{{ lastQuery }}”</p>
@@ -157,6 +121,6 @@ async function generate(query: string) {
       </div>
     </main>
 
-    <footer class="site-footer"><span>漫游<span class="site-brand-dot">.</span></span><p>把旅行想法，慢慢变成计划。</p><small>AI 生成内容和费用仅供规划参考，实际安排请以官方信息为准。<a href="https://www.pexels.com/video/drone-view-of-misty-karst-mountains-in-china-38368356/" target="_blank" rel="noopener noreferrer">视频：Pexels</a></small></footer>
+    <footer class="site-footer"><p>把旅行想法，慢慢变成计划。</p><small>AI 生成内容和费用仅供规划参考，实际安排请以官方信息为准。</small></footer>
   </div>
 </template>

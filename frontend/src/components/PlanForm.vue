@@ -28,10 +28,9 @@ function onKeydown(event: KeyboardEvent) {
       id="travel-request"
       v-model="query"
       class="prompt-input"
-      rows="4"
+      rows="3"
       maxlength="1000"
       :disabled="loading"
-      placeholder="例如：十月一日到七日从上海去北京旅行，想逛故宫和胡同，喜欢美食，预算中等，两人同行……"
       @keydown="onKeydown"
     />
     <div class="prompt-bottom">
