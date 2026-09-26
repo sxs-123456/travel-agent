@@ -72,11 +72,7 @@ RAIL_MCP_SEAT_CLASS=二等座
 BAIDU_MAP_AK=                    # 选填，优先使用百度路线；缺失时使用 AMAP_API_KEY 查询路线
 ```
 
-`frontend/.env`：
-```ini
-VITE_AMAP_KEY=                   # 本地构建时选填；线上也可用 AMAP_JS_API_KEY 运行时配置
-VITE_AMAP_SECURITY_CODE=         # 本地构建时选填；线上也可用 AMAP_JS_API_SECURITY_CODE
-```
+`frontend/.env` 仅在前后端分开部署时设置 `VITE_API_BASE`；同源部署无需配置。
 
 **完全免费、免 key 的数据源**：门票（百度百科）、封面图（Openverse）、火车票（12306 直连）。Pexels 为可选增强（免费 key，200 次/时）。
 

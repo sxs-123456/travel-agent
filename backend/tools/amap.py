@@ -189,6 +189,62 @@ def driving_route(origin: Location, destination: Location) -> dict[str, float | 
     }
 
 
+def transit_route(
+    origin: Location, destination: Location, city: str
+) -> dict[str, float | list[str] | str]:
+    """Query AMap public transit directions and return a compact route summary."""
+    if not settings.use_real_amap:
+        raise RuntimeError("AMAP_API_KEY is required for transit directions")
+
+    params = {
+        "key": settings.amap_api_key,
+        "origin": f"{origin.longitude},{origin.latitude}",
+        "destination": f"{destination.longitude},{destination.latitude}",
+        "city": city,
+        "cityd": city,
+        "strategy": "0",
+        "nightflag": "0",
+        "extensions": "base",
+    }
+    resp = httpx.get(f"{AMAP_V3}/direction/transit/integrated", params=params, timeout=10)
+    resp.raise_for_status()
+    data = resp.json()
+    transits = (data.get("route") or {}).get("transits") or []
+    if data.get("status") != "1" or not transits:
+        raise RuntimeError("AMap did not return a usable transit route")
+
+    route = transits[0]
+    lines: list[str] = []
+    for segment in route.get("segments") or []:
+        buslines = ((segment.get("bus") or {}).get("buslines") or [])
+        for busline in buslines:
+            name = str(busline.get("name") or "").split("(", 1)[0].strip()
+            departure = str((busline.get("departure_stop") or {}).get("name") or "").strip()
+            arrival = str((busline.get("arrival_stop") or {}).get("name") or "").strip()
+            if name:
+                detail = name
+                if departure and arrival:
+                    detail += f" ({departure}->{arrival})"
+                if detail not in lines:
+                    lines.append(detail)
+        railway = segment.get("railway") or {}
+        railway_name = str(railway.get("name") or "").strip()
+        if railway_name and railway_name not in lines:
+            lines.append(railway_name)
+
+    try:
+        duration_min = round(float(route.get("duration") or 0) / 60)
+        walking_km = round(float(route.get("walking_distance") or 0) / 1000, 1)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError("AMap returned invalid transit duration data") from exc
+    return {
+        "duration_min": duration_min,
+        "walking_km": walking_km,
+        "lines": lines,
+        "source": "amap_transit",
+    }
+
+
 # ---------------------------------------------------------------------------
 # 酒店检索（高德 v5：真实酒店 + 官方档次/评分）
 # ---------------------------------------------------------------------------

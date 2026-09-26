@@ -7,6 +7,7 @@ from backend.tools.amap import (
     text_search,
     weather,
     driving_route,
+    transit_route,
 )
 from backend.tools.images import search_image
 from backend.rail_client import RailClient
@@ -53,6 +54,40 @@ def test_amap_driving_route_parses_distance_and_duration(monkeypatch):
     )
     assert result == {
         "distance_km": 12.5, "duration_min": 30.0, "source": "amap_driving"
+    }
+
+
+def test_amap_transit_route_parses_lines_and_walking(monkeypatch):
+    class FakeResp:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {
+                "status": "1",
+                "route": {"transits": [{
+                    "duration": "2100",
+                    "walking_distance": "650",
+                    "segments": [{"bus": {"buslines": [{
+                        "name": "地铁2号线(经天路-鱼嘴)",
+                        "departure_stop": {"name": "新街口"},
+                        "arrival_stop": {"name": "苜蓿园"},
+                    }]}}],
+                }]},
+            }
+
+    monkeypatch.setattr(settings, "amap_api_key", "test-key")
+    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: FakeResp())
+    result = transit_route(
+        Location(longitude=118.78, latitude=32.04),
+        Location(longitude=118.84, latitude=32.05),
+        "南京",
+    )
+    assert result == {
+        "duration_min": 35,
+        "walking_km": 0.7,
+        "lines": ["地铁2号线 (新街口->苜蓿园)"],
+        "source": "amap_transit",
     }
 
 

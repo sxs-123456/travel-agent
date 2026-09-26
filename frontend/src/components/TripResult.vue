@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, reactive, watch } from "vue";
+import { reactive, watch } from "vue";
 import type { TripPlan } from "@/types/trip";
 import BudgetPanel from "./BudgetPanel.vue";
 import DayTimeline from "./DayTimeline.vue";
-
-const MapView = defineAsyncComponent(() => import("./MapView.vue"));
 
 const props = defineProps<{ plan: TripPlan }>();
 const emit = defineEmits<{ (e: "update", plan: TripPlan): void }>();
@@ -25,29 +23,6 @@ watch(
   (value) => emit("update", JSON.parse(JSON.stringify(value)) as TripPlan),
   { deep: true, flush: "post" }
 );
-
-// 汇总所有需要标注的地理点（景点 + 酒店）。
-const spots = computed(() => {
-  const arr: { name: string; lng: number; lat: number; kind: string }[] = [];
-  editable.days.forEach((d) => {
-    d.attractions.forEach((a) =>
-      arr.push({
-        name: a.name,
-        lng: a.location.longitude,
-        lat: a.location.latitude,
-        kind: "景点",
-      })
-    );
-    if (d.hotel)
-      arr.push({
-        name: d.hotel.name,
-        lng: d.hotel.location.longitude,
-        lat: d.hotel.location.latitude,
-        kind: "酒店",
-      });
-  });
-  return arr;
-});
 
 // ---- 行程编辑：由 DayTimeline 的 emit 驱动，修改 editable 副本 ----
 function onRemoveAttraction(dayIdx: number, attrIdx: number) {
@@ -208,11 +183,21 @@ function recomputeBudget() {
           <span class="tp-muted" style="font-size: 12px">🚄 {{ editable.train_note }}</span>
         </div>
       </div>
-      <!-- 右列：地图标注（右上角，行程上方）+ 逐日行程（内部滚动） -->
+      <!-- &#21491;&#21015;&#65306;&#27599;&#26085;&#20986;&#34892;&#25915;&#30053; + &#36880;&#26085;&#34892;&#31243; -->
       <div class="tp-right-col">
-        <div class="tp-map-block">
-          <div class="tp-section-title">📌 地图标注</div>
-          <MapView :spots="spots" :city="editable.city" :height="220" />
+        <div class="tp-transit-block">
+          <div class="tp-section-title">&#128652; &#27599;&#26085;&#20986;&#34892;&#25915;&#30053;</div>
+          <div class="tp-transit-days">
+            <article v-for="day in editable.days" :key="day.day" class="tp-transit-day">
+              <strong>Day {{ day.day }} <span>{{ day.date }}</span></strong>
+              <ul v-if="day.transit_advice?.length">
+                <li v-for="(item, index) in day.transit_advice" :key="index">{{ item }}</li>
+              </ul>
+              <p v-else>
+                &#35831;&#32467;&#21512;&#23454;&#26102;&#23548;&#33322;&#36873;&#25321;&#22320;&#38081;&#12289;&#20844;&#20132;&#25110;&#27493;&#34892;&#32447;&#36335;&#12290;
+              </p>
+            </article>
+          </div>
         </div>
         <div class="tp-timeline-scroll">
           <div class="tp-section-title">📅 逐日行程（可编辑）</div>
@@ -253,13 +238,43 @@ function recomputeBudget() {
   border-radius: 8px;
   background: #fafafa;
 }
-/* 地图固定在右列顶部（右上角，行程上方） */
-.tp-map-block {
+/* &#27599;&#26085;&#20986;&#34892;&#25915;&#30053;&#20301;&#20110;&#36880;&#26085;&#34892;&#31243;&#19978;&#26041;&#65292;&#20869;&#37096;&#21487;&#28378;&#21160;&#12290; */
+.tp-transit-block {
   flex-shrink: 0;
 }
-.tp-map-block :deep(.tp-empty-map) {
-  max-height: 220px;
+.tp-transit-days {
+  display: grid;
+  gap: 8px;
+  max-height: 240px;
   overflow-y: auto;
+  padding-right: 6px;
+}
+.tp-transit-day {
+  border: 1px solid #eee3d5;
+  border-radius: 10px;
+  background: #fffcf6;
+  padding: 10px 12px;
+}
+.tp-transit-day strong {
+  display: flex;
+  gap: 8px;
+  color: #29251f;
+}
+.tp-transit-day strong span {
+  color: #8a7661;
+  font-size: 12px;
+  font-weight: 500;
+}
+.tp-transit-day ul {
+  margin: 7px 0 0;
+  padding-left: 18px;
+}
+.tp-transit-day li,
+.tp-transit-day p {
+  margin: 4px 0;
+  color: #665c51;
+  font-size: 12px;
+  line-height: 1.55;
 }
 /* 逐日行程：占满右列剩余空间并内部滚动 */
 .tp-timeline-scroll {
@@ -272,23 +287,23 @@ function recomputeBudget() {
 }
 .tp-rail-scroll::-webkit-scrollbar,
 .tp-timeline-scroll::-webkit-scrollbar,
-.tp-map-block :deep(.tp-empty-map)::-webkit-scrollbar {
+.tp-transit-days::-webkit-scrollbar {
   width: 6px;
 }
 .tp-rail-scroll::-webkit-scrollbar-track,
 .tp-timeline-scroll::-webkit-scrollbar-track,
-.tp-map-block :deep(.tp-empty-map)::-webkit-scrollbar-track {
+.tp-transit-days::-webkit-scrollbar-track {
   background: transparent;
 }
 .tp-rail-scroll::-webkit-scrollbar-thumb,
 .tp-timeline-scroll::-webkit-scrollbar-thumb,
-.tp-map-block :deep(.tp-empty-map)::-webkit-scrollbar-thumb {
+.tp-transit-days::-webkit-scrollbar-thumb {
   background: #d9d9d9;
   border-radius: 3px;
 }
 .tp-rail-scroll::-webkit-scrollbar-thumb:hover,
 .tp-timeline-scroll::-webkit-scrollbar-thumb:hover,
-.tp-map-block :deep(.tp-empty-map)::-webkit-scrollbar-thumb:hover {
+.tp-transit-days::-webkit-scrollbar-thumb:hover {
   background: #bfbfbf;
 }
 @media (max-width: 900px) {

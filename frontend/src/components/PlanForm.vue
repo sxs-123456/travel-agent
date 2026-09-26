@@ -9,12 +9,11 @@ interface Submission {
 
 const props = defineProps<{
   loading?: boolean;
-  initialQuery?: string;
   error?: string;
   missingFields?: string[];
 }>();
 const emit = defineEmits<{ (e: "submit", value: Submission): void; (e: "edit"): void }>();
-const query = ref(props.initialQuery ?? "");
+const query = ref("");
 const startDate = ref("");
 const endDate = ref("");
 const now = new Date();
@@ -29,9 +28,7 @@ const needsDates = computed(() =>
   props.missingFields?.some((field) => field === "start_date" || field === "end_date")
 );
 
-watch(() => props.initialQuery, (value) => { query.value = value ?? ""; });
 watch(query, () => emit("edit"));
-watch([startDate, endDate], () => emit("edit"));
 
 function submit() {
   if (!canSubmit.value) return;

@@ -151,6 +151,9 @@ class DayPlan(BaseModel):
     route_distance_source: str = Field(
         "straight_line", description="距离来源：amap_driving 或 straight_line"
     )
+    transit_advice: List[str] = Field(
+        default_factory=list, description="当日各段地铁、公交或步行出行建议"
+    )
     notes: str = Field("", description="当日备注/路线提示")
 
 

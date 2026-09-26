@@ -25,6 +25,7 @@ const zh = {
   perNight: "\u665a",
   tips: "\u63d0\u793a",
   trains: "\u8f66\u6b21\u53c2\u8003",
+  transit: "\u6bcf\u65e5\u51fa\u884c\u653b\u7565",
   noRecommendation: "\u6682\u65e0\u63a8\u8350",
   disclaimer: "\u672c\u653b\u7565\u7531 AI Trip Planner \u751f\u6210\uff0c\u4ec5\u4f9b\u89c4\u5212\u53c2\u8003\uff0c\u7968\u4ef7\u3001\u5f00\u653e\u65f6\u95f4\u548c\u4ea4\u901a\u4fe1\u606f\u8bf7\u4ee5\u5b98\u65b9\u6e20\u9053\u4e3a\u51c6\u3002",
 };
@@ -75,6 +76,11 @@ function markdownForTrip(item: SavedTrip): string {
     }
     if (day.hotel) {
       lines.push("### " + zh.stay, "", "- " + day.hotel.name + " \u00b7 \u7ea6 \u00a5" + day.hotel.price_per_night + "/" + zh.perNight, "");
+    }
+    if (day.transit_advice?.length) {
+      lines.push("### " + zh.transit, "");
+      day.transit_advice.forEach((advice) => lines.push("- " + advice));
+      lines.push("");
     }
     if (day.notes) lines.push("### " + zh.tips, "", day.notes, "");
   }

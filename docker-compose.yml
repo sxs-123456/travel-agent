@@ -3,8 +3,6 @@ services:
     build:
       context: .
       args:
-        VITE_AMAP_KEY: ${VITE_AMAP_KEY:-}
-        VITE_AMAP_SECURITY_CODE: ${VITE_AMAP_SECURITY_CODE:-}
         VITE_API_BASE: ${VITE_API_BASE:-}
     env_file:
       - .env

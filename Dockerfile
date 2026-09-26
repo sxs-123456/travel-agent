@@ -3,11 +3,7 @@ WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci
 COPY frontend/ ./
-ARG VITE_AMAP_KEY=""
-ARG VITE_AMAP_SECURITY_CODE=""
 ARG VITE_API_BASE=""
-ENV VITE_AMAP_KEY=$VITE_AMAP_KEY
-ENV VITE_AMAP_SECURITY_CODE=$VITE_AMAP_SECURITY_CODE
 ENV VITE_API_BASE=$VITE_API_BASE
 RUN npm run build
 

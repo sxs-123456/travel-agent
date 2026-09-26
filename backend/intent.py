@@ -1,6 +1,7 @@
 """Turn a free-form travel request into the existing validated planner input."""
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta, timezone
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -8,6 +9,22 @@ from pydantic import AliasChoices, BaseModel, Field, ValidationError, field_vali
 
 from backend.agents.base import get_llm, structured_chain
 from backend.models.trip import TripPlanRequest
+
+
+_DATE_EVIDENCE_RE = re.compile(
+    r"\d{4}(?:-|/|\.)\d{1,2}(?:-|/|\.)\d{1,2}"
+    r"|\d{1,2}(?:/|\.)\d{1,2}"
+    r"|\d{4}\u5e74\d{1,2}\u6708\d{1,2}(?:\u65e5|\u53f7)?"
+    r"|\d{1,2}\u6708\d{1,2}(?:\u65e5|\u53f7)?"
+    r"|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+\u6708"
+    r"[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+(?:\u65e5|\u53f7)?"
+    r"|(?:\u4eca\u5929|\u660e\u5929|\u540e\u5929|\u5927\u540e\u5929|\u672c\u5468|\u4e0b\u5468|\u5468\u672b)"
+)
+
+
+def _has_date_evidence(query: str) -> bool:
+    """Return whether the user supplied any recognizable travel date."""
+    return bool(_DATE_EVIDENCE_RE.search(query))
 
 
 class TripIntent(BaseModel):
@@ -83,11 +100,17 @@ def parse_trip_intent(
     if not isinstance(intent, TripIntent):
         raise RuntimeError("\u9700\u6c42\u89e3\u6790\u6682\u65f6\u4e0d\u53ef\u7528\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002")
 
-    # Date-picker values are explicit structured user input and override text extraction.
+    # Never accept dates invented by the model. Date-picker values are explicit
+    # structured user input; otherwise the raw message must contain date evidence.
+    has_text_date = _has_date_evidence(query)
     if start_date_override:
         intent.start_date = start_date_override
+    elif not has_text_date:
+        intent.start_date = None
     if end_date_override:
         intent.end_date = end_date_override
+    elif not has_text_date:
+        intent.end_date = None
 
     missing: list[tuple[str, str]] = []
     if not (intent.city or "").strip():

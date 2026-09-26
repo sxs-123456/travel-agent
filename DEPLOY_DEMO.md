@@ -32,7 +32,6 @@ USE_RAIL_MCP=true
 
 Railway 若已有 `USE_RAIL_MCP=false`，必须在服务的 Variables 中改为 `true` 并重新部署；代码默认值不会覆盖显式的 `false`。12306 查询还要求输入出发城市，且可能受预售期和接口风控影响。项目会把查询失败或票价缺失明确显示出来，并说明未计入预算。
 
-如需在 Railway 显示高德交互地图，可在运行时 Variables 设置 `AMAP_JS_API_KEY`（Web 端 JS API Key）和 `AMAP_JS_API_SECURITY_CODE`。页面会从同源 `/api/public-config` 读取这两个浏览器配置，无需为它们重建前端；后端 `AMAP_API_KEY` 仍保留在服务端。Key 应限制允许域名为部署域名。保存变量并等服务重启/部署完成后，再刷新页面。
 
 后端部署完成后记录其公开 HTTPS 地址，例如 `https://trip-api.example-host.com`，并先打开 `https://trip-api.example-host.com/health` 确认服务正常。
 
@@ -49,11 +48,9 @@ Railway 若已有 `USE_RAIL_MCP=false`，必须在服务的 Variables 中改为 
 
 ```ini
 VITE_API_BASE=https://你的后端服务域名
-VITE_AMAP_KEY=可选的高德 JS API key
-VITE_AMAP_SECURITY_CODE=可选的高德 JS API 安全码
 ```
 
-`VITE_API_BASE` 填后端 HTTPS 地址，不要带 `/api` 路径或末尾斜杠。修改变量后需要重新构建/部署前端。高德 JS API key 会进入浏览器可下载的静态文件；若启用它，请在高德控制台限制允许的站点域名。**不要把 `LLM_API_KEY`、高德 Web 服务密钥或其他后端密钥设置为 `VITE_*` 变量。**
+`VITE_API_BASE` 填后端 HTTPS 地址，不要带 `/api` 路径或末尾斜杠。修改变量后需要重新构建/部署前端。**不要把 `LLM_API_KEY`、高德 Web 服务密钥或其他后端密钥设置为 `VITE_*` 变量。**
 
 ## 3. 配置 CORS 并验证
 

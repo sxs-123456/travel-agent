@@ -25,7 +25,7 @@ from backend.models.trip import (
 from backend.agents.base import get_llm, structured_chain
 from backend.config import settings
 from backend.rail_client import rail_client
-from backend.tools.amap import driving_route
+from backend.tools.amap import driving_route, transit_route
 from backend.tools.restaurants import recommend_restaurants
 logger = logging.getLogger("trip-planner")
 
@@ -218,6 +218,57 @@ class PlannerAgent:
                     "（实际路程以地图导航为准）"
                 )
             day.notes = (day.notes + "；" if day.notes else "") + route_note
+
+    @classmethod
+    def _enrich_transit_advice(cls, plan: TripPlan) -> None:
+        """Add practical point-to-point public transit guidance for every day."""
+        for day in plan.days:
+            stops: list[tuple[str, object]] = [
+                (attraction.name, attraction.location) for attraction in day.attractions
+            ]
+            if day.hotel and stops:
+                stops = [(day.hotel.name, day.hotel.location), *stops, (day.hotel.name, day.hotel.location)]
+            if len(stops) < 2:
+                day.transit_advice = [
+                    "\u5f53\u5929\u884c\u7a0b\u8f83\u5c11\uff0c\u5efa\u8bae\u7ed3\u5408\u5b9e\u65f6\u5bfc\u822a\u9009\u62e9\u6b65\u884c\u3001\u5730\u94c1\u6216\u516c\u4ea4\u3002"
+                ]
+                continue
+
+            advice: list[str] = []
+            for (from_name, origin), (to_name, destination) in zip(stops, stops[1:]):
+                distance = cls._haversine_km(origin, destination)
+                try:
+                    route = transit_route(origin, destination, plan.city)
+                    lines = [str(item) for item in route.get("lines", [])]
+                    duration = int(float(route.get("duration_min", 0)))
+                    walking = float(route.get("walking_km", 0))
+                    if lines:
+                        method = " -> ".join(lines[:3])
+                        detail = (
+                            f"{from_name} -> {to_name}\uff1a\u4e58\u5750 {method}\uff0c"
+                            f"\u7ea6 {duration} \u5206\u949f"
+                        )
+                        if walking > 0:
+                            detail += f"\uff0c\u5176\u4e2d\u6b65\u884c\u7ea6 {walking:.1f} \u516c\u91cc"
+                    else:
+                        detail = (
+                            f"{from_name} -> {to_name}\uff1a\u516c\u4ea4\u51fa\u884c\u7ea6 {duration} \u5206\u949f\uff0c"
+                            f"\u6b65\u884c\u7ea6 {walking:.1f} \u516c\u91cc\uff0c\u5177\u4f53\u73ed\u6b21\u4ee5\u5b9e\u65f6\u5bfc\u822a\u4e3a\u51c6"
+                        )
+                except Exception as exc:  # noqa: BLE001 - each leg has a useful fallback
+                    logger.info("Day%d transit route fallback: %s", day.day, exc)
+                    if distance <= 1.5:
+                        detail = (
+                            f"{from_name} -> {to_name}\uff1a\u76f8\u8ddd\u7ea6 {distance:.1f} \u516c\u91cc\uff0c"
+                            "\u5efa\u8bae\u6b65\u884c\u6216\u9a91\u884c"
+                        )
+                    else:
+                        detail = (
+                            f"{from_name} -> {to_name}\uff1a\u76f8\u8ddd\u7ea6 {distance:.1f} \u516c\u91cc\uff0c"
+                            "\u5efa\u8bae\u4f18\u5148\u4e58\u5750\u5730\u94c1\u6216\u516c\u4ea4\uff0c\u5177\u4f53\u7ebf\u8def\u4ee5\u5b9e\u65f6\u5bfc\u822a\u4e3a\u51c6"
+                        )
+                advice.append(detail)
+            day.transit_advice = advice
 
     @staticmethod
     def _dedupe_attractions_across_days(plan: TripPlan) -> None:
@@ -434,6 +485,7 @@ class PlannerAgent:
         # 最近邻排序后用高德驾车路线补充真实道路距离与时长；接口失败自动回退直线距离。
         self._optimize_routes(plan)
         self._enrich_driving_routes(plan)
+        self._enrich_transit_advice(plan)
 
         # 用每日中段景点附近的高德真实餐厅覆盖模型餐饮建议；查询失败时保留原建议。
         for day_number, meal in recommend_restaurants(plan.days).items():

@@ -174,6 +174,8 @@ def test_model_quota_error_has_actionable_safe_message(monkeypatch):
 
 
 def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
+    assert intent._has_date_evidence("10.1\u523010.4") is True
+
     class FakeChain:
         result = None
 
@@ -191,6 +193,16 @@ def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
     chain.result = intent.TripIntent(city="北京", origin_city="上海")
     with pytest.raises(intent.TripIntentError, match="请补充出发日期、返程日期"):
         intent.parse_trip_intent("我想从上海去北京旅行")
+
+    # The model may hallucinate dates even when the user did not provide them.
+    # Raw user input remains the source of truth and must trigger a follow-up.
+    chain.result = intent.TripIntent(
+        city="北京", origin_city="上海",
+        start_date="2026-10-01", end_date="2026-10-04",
+    )
+    with pytest.raises(intent.TripIntentError) as exc_info:
+        intent.parse_trip_intent("travel from Shanghai to Beijing")
+    assert exc_info.value.missing_fields == ["start_date", "end_date"]
 
     chain.result = intent.TripIntent(city="北京", start_date="2026-10-07", end_date="2026-10-01")
     with pytest.raises(intent.TripIntentError, match="返程日期不能早于出发日期"):
