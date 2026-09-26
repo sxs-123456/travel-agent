@@ -120,6 +120,35 @@ def test_natural_language_planner_failure_is_returned(monkeypatch):
     assert "规划服务暂不可用" in response.json()["detail"]
 
 
+def test_model_quota_error_has_actionable_safe_message(monkeypatch):
+    class QuotaError(Exception):
+        status_code = 402
+
+        def __str__(self):
+            return "Insufficient Balance (request_id: upstream-private-id)"
+
+    request = TripPlanRequest(city="南京", start_date="2026-10-01", end_date="2026-10-04")
+    monkeypatch.setattr(api_main, "parse_trip_intent", lambda _query: request)
+
+    def unavailable(_self, _request):
+        raise QuotaError()
+
+    monkeypatch.setattr(TripPlannerAgent, "plan_trip", unavailable)
+    response = client.post("/api/trip-plan/from-text", json={"query": "十月一号到四号去南京"})
+    assert response.status_code == 503
+    assert "额度已用完" in response.json()["detail"]
+    assert "upstream-private-id" not in response.json()["detail"]
+
+    def parse_unavailable(_query):
+        raise QuotaError()
+
+    monkeypatch.setattr(api_main, "parse_trip_intent", parse_unavailable)
+    response = client.post("/api/trip-plan/from-text", json={"query": "十月一号到四号去南京"})
+    assert response.status_code == 503
+    assert "额度已用完" in response.json()["detail"]
+    assert "upstream-private-id" not in response.json()["detail"]
+
+
 def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
     class FakeChain:
         result = None

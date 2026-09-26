@@ -24,6 +24,24 @@ from backend.tracing import request_id as current_request_id
 
 logger = logging.getLogger("trip-planner")
 
+_LLM_QUOTA_MESSAGE = "AI 服务额度已用完，请联系站点维护者更新模型账户额度。"
+
+
+def _is_llm_quota_error(exc: BaseException) -> bool:
+    """识别模型供应商的 402 错误，不把原始上游响应回显给用户。"""
+    seen: set[int] = set()
+    current: BaseException | None = exc
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        status = getattr(current, "status_code", None)
+        response = getattr(current, "response", None)
+        if status == 402 or getattr(response, "status_code", None) == 402:
+            return True
+        if "insufficient balance" in str(current).lower():
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
 # CORS：默认仅允许本地前端来源；如需放开，用 CORS_ORIGINS（逗号分隔）覆盖。
 _default_origins = [
     "http://localhost:5173",
@@ -96,8 +114,13 @@ def create_plan(request: TripPlanRequest) -> TripPlan:
         return planner.plan_trip(request)
     except Exception as e:  # noqa: BLE001  边界处统一兜底，避免向客户端泄漏堆栈
         logger.exception("行程规划失败")
-        # 截断 detail，防止 LLM/上游返回的完整原文被回给前端
-        detail = (str(e) or e.__class__.__name__)[:200]
+        if _is_llm_quota_error(e):
+            return JSONResponse(status_code=503, content={"detail": _LLM_QUOTA_MESSAGE})
+        detail = (
+            (str(e) or e.__class__.__name__)[:200]
+            if isinstance(e, RuntimeError)
+            else "行程规划暂时不可用，请稍后重试。"
+        )
         status = 400 if isinstance(e, RuntimeError) else 502
         return JSONResponse(status_code=status, content={"detail": detail})
 
@@ -113,6 +136,8 @@ def create_plan_from_text(payload: NaturalTripRequest) -> NaturalTripResponse | 
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except Exception as exc:  # noqa: BLE001
         logger.exception("旅行需求解析失败")
+        if _is_llm_quota_error(exc):
+            return JSONResponse(status_code=503, content={"detail": _LLM_QUOTA_MESSAGE})
         detail = str(exc)[:200] if isinstance(exc, RuntimeError) else "需求解析暂时不可用，请稍后重试。"
         status = 400 if isinstance(exc, RuntimeError) else 502
         return JSONResponse(status_code=status, content={"detail": detail})
