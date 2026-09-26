@@ -20,10 +20,9 @@ _DATE_EVIDENCE_RE = re.compile(
     r"[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+(?:\u65e5|\u53f7)?"
     r"|(?:\u4eca\u5929|\u660e\u5929|\u540e\u5929|\u5927\u540e\u5929|\u672c\u5468|\u4e0b\u5468|\u5468\u672b)"
 )
-_TRAVELER_EVIDENCE_RE = re.compile(
-    r"(?:\d+|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u4e24]+)\s*"
-    r"(?:\u4eba|\u4f4d)"
-    r"|(?:\u72ec\u81ea|\u4e00\u4e2a\u4eba|\u5355\u4eba|\u60c5\u4fa3|\u592b\u59bb|\u4e00\u5bb6)"
+_TRAVELER_RE = re.compile(
+    r"(?P<count>\d+|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u4e24]+)\s*"
+    r"(?:\u4e2a)?(?:\u4eba|\u4f4d)"
 )
 _BUDGET_EVIDENCE_RE = re.compile(
     r"(?:\u9884\u7b97|\u7ecf\u6d4e|\u7701\u94b1|\u5b9e\u60e0|\u4e2d\u7b49|\u8212\u9002|\u8c6a\u534e|\u5145\u8db3|\u6709\u9650|\u4e0d\u5dee\u94b1)"
@@ -44,6 +43,32 @@ def _mentions_place(query: str, place: str | None) -> bool:
         return False
     normalized = re.sub(r"(?:\u5e02|\u5730\u533a)$", "", place.strip())
     return bool(normalized and normalized in query)
+
+
+def _chinese_number(value: str) -> int | None:
+    if value.isdigit():
+        return int(value)
+    digits = {
+        "\u4e00": 1, "\u4e8c": 2, "\u4e24": 2, "\u4e09": 3, "\u56db": 4,
+        "\u4e94": 5, "\u516d": 6, "\u4e03": 7, "\u516b": 8, "\u4e5d": 9,
+    }
+    if value == "\u5341":
+        return 10
+    if "\u5341" in value:
+        left, right = value.split("\u5341", 1)
+        tens = digits.get(left, 1) if left else 1
+        ones = digits.get(right, 0) if right else 0
+        return tens * 10 + ones
+    return digits.get(value)
+
+
+def _extract_travelers(query: str) -> int | None:
+    if re.search(r"(?:\u72ec\u81ea|\u4e00\u4e2a\u4eba|\u5355\u4eba)", query):
+        return 1
+    if re.search(r"(?:\u60c5\u4fa3|\u592b\u59bb)", query):
+        return 2
+    match = _TRAVELER_RE.search(query)
+    return _chinese_number(match.group("count")) if match else None
 
 
 class TripIntent(BaseModel):
@@ -137,8 +162,7 @@ def parse_trip_intent(
         intent.city = None
     if not _mentions_place(query, intent.origin_city):
         intent.origin_city = None
-    if not _TRAVELER_EVIDENCE_RE.search(query):
-        intent.travelers = None
+    intent.travelers = _extract_travelers(query)
     if not _BUDGET_EVIDENCE_RE.search(query):
         intent.budget_level = None
     if not _PREFERENCE_EVIDENCE_RE.search(query):

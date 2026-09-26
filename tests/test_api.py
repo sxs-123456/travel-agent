@@ -213,6 +213,9 @@ def test_model_quota_error_has_actionable_safe_message(monkeypatch):
 
 def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
     assert intent._has_date_evidence("10.1\u523010.4") is True
+    assert intent._extract_travelers("\u4e00\u4e2a\u4eba\u51fa\u53d1") == 1
+    assert intent._extract_travelers("\u4e24\u4e2a\u4eba\u51fa\u53d1") == 2
+    assert intent._extract_travelers("12\u4f4d\u6e38\u5ba2") == 12
 
     class FakeChain:
         result = None
@@ -259,6 +262,20 @@ def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
             end_date_override="2026-10-04",
         )
     assert exc_info.value.missing_fields == ["travelers", "budget_level", "preferences"]
+
+    # Exact regression: a provider may omit travelers even though the user said
+    # one person. The deterministic parser must recover it from the raw request.
+    chain.result = intent.TripIntent(
+        city="\u5357\u4eac", origin_city="\u4e0a\u6d77",
+        start_date="2026-09-27", end_date="2026-10-02",
+        travelers=None, budget_level="\u4e2d\u7b49", preferences="\u7f8e\u98df",
+    )
+    request = intent.parse_trip_intent(
+        "\u4e00\u4e2a\u4eba\u4ece\u4e0a\u6d77\u53bb\u5357\u4eac\u73a9\uff0c\u9884\u7b973000\uff0c\u559c\u6b22\u7f8e\u98df",
+        start_date_override="2026-09-27",
+        end_date_override="2026-10-02",
+    )
+    assert request.travelers == 1
 
     chain.result = intent.TripIntent(
         city="北京", origin_city="上海",
