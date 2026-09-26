@@ -7,6 +7,7 @@ import DayTimeline from "./DayTimeline.vue";
 const MapView = defineAsyncComponent(() => import("./MapView.vue"));
 
 const props = defineProps<{ plan: TripPlan }>();
+const emit = defineEmits<{ (e: "update", plan: TripPlan): void }>();
 
 // 可编辑副本：用户在前端删除行程项 / 修改备注后，不影响原始 API 返回。
 const editable = reactive(JSON.parse(JSON.stringify(props.plan))) as TripPlan;
@@ -17,6 +18,12 @@ watch(
     Object.assign(editable, JSON.parse(JSON.stringify(v)));
   },
   { deep: true }
+);
+
+watch(
+  editable,
+  (value) => emit("update", JSON.parse(JSON.stringify(value)) as TripPlan),
+  { deep: true, flush: "post" }
 );
 
 // 汇总所有需要标注的地理点（景点 + 酒店）。

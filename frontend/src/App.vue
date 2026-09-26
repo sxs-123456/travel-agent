@@ -1,78 +1,134 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from "vue";
-import type { NaturalTripResponse } from "@/types/trip";
-import { createTripPlanFromText } from "@/api/client";
+import { computed, onMounted, onUnmounted, ref } from "vue";
+import type { NaturalTripResponse, TripPlan } from "@/types/trip";
+import { createTripPlanFromText, TripRequestError } from "@/api/client";
 import PlanForm from "@/components/PlanForm.vue";
+import PlanHistory from "@/components/PlanHistory.vue";
 import TripResult from "@/components/TripResult.vue";
+import { downloadTrip } from "@/utils/download";
+import {
+  deleteSavedTrip,
+  loadTripHistory,
+  migrateLegacyPlan,
+  saveTrip,
+  updateSavedTripPlan,
+  type SavedTrip,
+} from "@/utils/history";
 
-const STORAGE_KEY = "ai-trip-planner:last-plan";
-
-function loadSaved(): (NaturalTripResponse & { query: string }) | null {
-  try {
-    const value = sessionStorage.getItem(STORAGE_KEY);
-    if (!value) return null;
-    const parsed = JSON.parse(value);
-    return parsed?.plan?.days && parsed?.request?.city ? parsed : null;
-  } catch {
-    return null;
-  }
+interface FormSubmission {
+  query: string;
+  startDate?: string;
+  endDate?: string;
 }
 
-const saved = loadSaved();
+const history = ref<SavedTrip[]>(migrateLegacyPlan());
+const currentId = ref(history.value[0]?.id ?? "");
 const result = ref<NaturalTripResponse | null>(
-  saved ? { request: saved.request, plan: saved.plan } : null
+  history.value[0] ? { request: history.value[0].request, plan: history.value[0].plan } : null
 );
-const lastQuery = ref(saved?.query ?? "");
-const showResult = ref(window.location.hash === "#/plan");
+const lastQuery = ref(history.value[0]?.query ?? "");
+const route = ref(window.location.hash || "#/");
 const loading = ref(false);
 const error = ref("");
+const missingFields = ref<string[]>([]);
+
+const isPlan = computed(() => route.value === "#/plan");
+const isHistory = computed(() => route.value === "#/history");
 
 function syncRoute() {
-  showResult.value = window.location.hash === "#/plan";
+  route.value = window.location.hash || "#/";
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
 onMounted(() => window.addEventListener("hashchange", syncRoute));
 onUnmounted(() => window.removeEventListener("hashchange", syncRoute));
 
-async function generate(query: string) {
+function clearPromptState() {
+  error.value = "";
+  missingFields.value = [];
+}
+
+async function generate(submission: FormSubmission) {
   if (loading.value) return;
   loading.value = true;
-  error.value = "";
+  clearPromptState();
+  lastQuery.value = submission.query;
   try {
-    const response = await createTripPlanFromText(query);
+    const response = await createTripPlanFromText(submission.query, submission);
     result.value = response;
-    lastQuery.value = query;
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...response, query }));
-    } catch {
-      // The result remains available in this tab even if browser storage is full.
-    }
-    showResult.value = true;
+    const saved = saveTrip(response, submission.query);
+    currentId.value = saved.id;
+    const stored = loadTripHistory();
+    history.value = stored.some((item) => item.id === saved.id)
+      ? stored
+      : [saved, ...history.value];
     window.location.hash = "/plan";
-    window.scrollTo({ top: 0, behavior: "instant" });
   } catch (cause: unknown) {
-    error.value = cause instanceof Error ? cause.message : "行程生成失败，请稍后重试。";
+    error.value = cause instanceof Error
+      ? cause.message
+      : "\u884c\u7a0b\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002";
+    missingFields.value = cause instanceof TripRequestError ? cause.missingFields : [];
   } finally {
     loading.value = false;
   }
+}
+
+function openSavedTrip(item: SavedTrip) {
+  currentId.value = item.id;
+  result.value = { request: item.request, plan: item.plan };
+  lastQuery.value = item.query;
+  window.location.hash = "/plan";
+}
+
+function removeSavedTrip(id: string) {
+  history.value = deleteSavedTrip(id);
+  if (currentId.value === id) {
+    currentId.value = "";
+    result.value = null;
+    lastQuery.value = "";
+  }
+}
+
+function persistEditedPlan(plan: TripPlan) {
+  if (!currentId.value) return;
+  history.value = updateSavedTripPlan(currentId.value, plan);
+}
+
+function downloadCurrent() {
+  const item = history.value.find((saved) => saved.id === currentId.value);
+  if (item) downloadTrip(item);
+}
+
+function printPlan() {
+  window.print();
 }
 </script>
 
 <template>
   <div class="site-shell">
-    <main v-if="!showResult">
+    <nav class="site-nav" aria-label="Main navigation">
+      <a href="#/" :class="{ active: !isPlan && !isHistory }">&#24320;&#22987;&#35268;&#21010;</a>
+      <a href="#/history" :class="{ active: isHistory }">
+        &#25105;&#30340;&#26053;&#34892;&#35745;&#21010; <span v-if="history.length">{{ history.length }}</span>
+      </a>
+    </nav>
+
+    <main v-if="!isPlan && !isHistory">
       <section id="planner" class="hero">
         <img class="hero-illustration" src="/hero-landmarks.svg" alt="" aria-hidden="true" />
         <div class="hero-content">
-          <h1>下一站，<em>去哪里？</em></h1>
-          <p class="hero-lead">告诉我们你想去哪、何时出发和喜欢什么。<br />把一句旅行想法，变成一份可以查看的逐日计划。</p>
+          <h1>&#19979;&#19968;&#31449;&#65292;<em>&#21435;&#21738;&#37324;&#65311;</em></h1>
+          <p class="hero-lead">
+            &#21578;&#35785;&#25105;&#20204;&#20320;&#24819;&#21435;&#21738;&#12289;&#20309;&#26102;&#20986;&#21457;&#21644;&#21916;&#27426;&#20160;&#20040;&#12290;<br />
+            &#20449;&#24687;&#19981;&#22815;&#26102;&#65292;&#25105;&#20204;&#20250;&#20808;&#21521;&#20320;&#30830;&#35748;&#65292;&#20877;&#29983;&#25104;&#36880;&#26085;&#35745;&#21010;&#12290;
+          </p>
           <PlanForm
             :loading="loading"
             :error="error"
+            :missing-fields="missingFields"
             :initial-query="lastQuery"
             @submit="generate"
-            @edit="error = ''"
+            @edit="clearPromptState"
           />
         </div>
       </section>
@@ -80,47 +136,63 @@ async function generate(query: string) {
       <section id="features" class="info-section">
         <div class="info-heading">
           <span class="section-kicker">WHY PLAN WITH US</span>
-          <h2>从想法，到看得见的旅程</h2>
-          <p>输入自然语言需求，规划器结合目的地信息整理路线、住宿、天气和费用参考。</p>
+          <h2>&#20174;&#24819;&#27861;&#65292;&#21040;&#30475;&#24471;&#35265;&#30340;&#26053;&#31243;</h2>
+          <p>&#36755;&#20837;&#26053;&#34892;&#38656;&#27714;&#25110;&#30452;&#25509;&#36873;&#25321;&#26085;&#26399;&#65292;&#35268;&#21010;&#22120;&#20250;&#25972;&#29702;&#36335;&#32447;&#12289;&#20303;&#23487;&#12289;&#22825;&#27668;&#21644;&#36153;&#29992;&#21442;&#32771;&#12290;</p>
         </div>
         <div class="feature-grid">
-          <article class="feature-card"><span class="feature-number">01</span><h3>一句话就能开始</h3><p>直接描述出发地、目的地、日期和旅行偏好，无需逐项填写表单。</p></article>
-          <article class="feature-card"><span class="feature-number">02</span><h3>逐日安排更清楚</h3><p>查看每天的景点、餐饮与住宿建议，并在地图上了解行程位置。</p></article>
-          <article class="feature-card"><span class="feature-number">03</span><h3>费用有据可看</h3><p>展示门票、住宿、餐饮与交通的预算拆分；估算项会明确标注。</p></article>
+          <article class="feature-card"><span class="feature-number">01</span><h3>&#20449;&#24687;&#19981;&#20840;&#20250;&#36861;&#38382;</h3><p>&#32570;&#23569;&#30446;&#30340;&#22320;&#12289;&#20986;&#21457;&#26085;&#26399;&#25110;&#36820;&#31243;&#26085;&#26399;&#26102;&#65292;&#20808;&#35831;&#20320;&#34917;&#20805;&#65292;&#19981;&#25897;&#33258;&#29468;&#27979;&#12290;</p></article>
+          <article class="feature-card"><span class="feature-number">02</span><h3>&#36880;&#26085;&#23433;&#25490;&#26356;&#28165;&#26970;</h3><p>&#26597;&#30475;&#27599;&#22825;&#30340;&#26223;&#28857;&#12289;&#39184;&#39278;&#19982;&#20303;&#23487;&#24314;&#35758;&#65292;&#24182;&#22312;&#22320;&#22270;&#19978;&#20102;&#35299;&#34892;&#31243;&#20301;&#32622;&#12290;</p></article>
+          <article class="feature-card"><span class="feature-number">03</span><h3>&#25915;&#30053;&#38543;&#26102;&#25214;&#24471;&#21040;</h3><p>&#29983;&#25104;&#21518;&#33258;&#21160;&#20445;&#23384;&#21040;&#25105;&#30340;&#26053;&#34892;&#35745;&#21010;&#65292;&#36824;&#21487;&#20197;&#19979;&#36733;&#21040;&#26412;&#22320;&#38271;&#26399;&#20445;&#30041;&#12290;</p></article>
         </div>
       </section>
       <section id="how-it-works" class="closing-section">
         <span class="section-kicker">HOW IT WORKS</span>
-        <h2>说出你的下一段旅程。</h2>
-        <p>写清目的地与出发、返程日期，就可以开始规划。细节越具体，建议越贴近你的想法。</p>
+        <h2>&#35828;&#20986;&#20320;&#30340;&#19979;&#19968;&#27573;&#26053;&#31243;&#12290;</h2>
+        <p>&#20889;&#19979;&#30446;&#30340;&#22320;&#65292;&#26085;&#26399;&#21487;&#20197;&#30452;&#25509;&#36873;&#25321;&#65307;&#20154;&#25968;&#12289;&#39044;&#31639;&#19982;&#21916;&#22909;&#21487;&#20197;&#32487;&#32493;&#29992;&#33258;&#28982;&#35821;&#35328;&#25551;&#36848;&#12290;</p>
       </section>
+    </main>
+
+    <main v-else-if="isHistory">
+      <PlanHistory :items="history" @open="openSavedTrip" @remove="removeSavedTrip" />
     </main>
 
     <main v-else class="result-page">
       <template v-if="result">
         <div class="result-intro">
-          <a class="result-back" href="#/">← 返回首页</a>
+          <a class="result-back" href="#/">&larr; &#36820;&#22238;&#39318;&#39029;</a>
           <span class="section-kicker">YOUR ITINERARY</span>
-          <h1>你的 {{ result.request.city }} 之旅，<em>已就绪。</em></h1>
-          <p class="result-original">“{{ lastQuery }}”</p>
+          <div class="result-title-row">
+            <h1>&#20320;&#30340; {{ result.request.city }} &#20043;&#26053;&#65292;<em>&#24050;&#23601;&#32490;&#12290;</em></h1>
+            <div class="result-actions">
+              <button type="button" @click="downloadCurrent">&#19979;&#36733;&#25915;&#30053;</button>
+              <button type="button" @click="printPlan">&#25171;&#21360; / &#20445;&#23384; PDF</button>
+            </div>
+          </div>
+          <p class="result-original">&ldquo;{{ lastQuery }}&rdquo;</p>
           <div class="result-facts">
-            <span v-if="result.request.origin_city">从 {{ result.request.origin_city }} 出发</span>
-            <span>{{ result.request.start_date }} — {{ result.request.end_date }}</span>
-            <span>{{ result.plan.days.length }} 天行程</span>
-            <span>{{ result.request.travelers }} 人出行</span>
-            <span>{{ result.request.budget_level }}预算</span>
+            <span v-if="result.request.origin_city">&#20174; {{ result.request.origin_city }} &#20986;&#21457;</span>
+            <span>{{ result.request.start_date }} &mdash; {{ result.request.end_date }}</span>
+            <span>{{ result.plan.days.length }} &#22825;&#34892;&#31243;</span>
+            <span>{{ result.request.travelers }} &#20154;&#20986;&#34892;</span>
+            <span>{{ result.request.budget_level }}&#39044;&#31639;</span>
+            <span class="saved-badge">&#24050;&#20445;&#23384;&#21040;&#25105;&#30340;&#26053;&#34892;&#35745;&#21010;</span>
           </div>
         </div>
-        <div class="result-content"><TripResult :plan="result.plan" /></div>
+        <div class="result-content">
+          <TripResult :plan="result.plan" @update="persistEditedPlan" />
+        </div>
       </template>
       <div v-else class="result-missing">
         <span class="section-kicker">YOUR ITINERARY</span>
-        <h1>还没有生成行程</h1>
-        <p>回到首页，说说你的旅行计划吧。</p>
-        <a class="closing-cta" href="#/">返回首页 <span aria-hidden="true">↗</span></a>
+        <h1>&#36824;&#27809;&#26377;&#29983;&#25104;&#34892;&#31243;</h1>
+        <p>&#22238;&#21040;&#39318;&#39029;&#65292;&#35828;&#35828;&#20320;&#30340;&#26053;&#34892;&#35745;&#21010;&#21543;&#12290;</p>
+        <a class="closing-cta" href="#/">&#36820;&#22238;&#39318;&#39029; <span aria-hidden="true">&nearr;</span></a>
       </div>
     </main>
 
-    <footer class="site-footer"><p>把旅行想法，慢慢变成计划。</p><small>AI 生成内容和费用仅供规划参考，实际安排请以官方信息为准。</small></footer>
+    <footer class="site-footer">
+      <p>&#25226;&#26053;&#34892;&#24819;&#27861;&#65292;&#24930;&#24930;&#21464;&#25104;&#35745;&#21010;&#12290;</p>
+      <small>AI &#29983;&#25104;&#20869;&#23481;&#21644;&#36153;&#29992;&#20165;&#20379;&#35268;&#21010;&#21442;&#32771;&#65292;&#23454;&#38469;&#23433;&#25490;&#35831;&#20197;&#23448;&#26041;&#20449;&#24687;&#20026;&#20934;&#12290;</small>
+    </footer>
   </div>
 </template>

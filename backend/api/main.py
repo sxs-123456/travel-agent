@@ -87,14 +87,29 @@ planner = TripPlannerAgent()
 
 
 class NaturalTripRequest(BaseModel):
-    query: str = Field(min_length=5, max_length=1000)
+    query: str = Field(min_length=2, max_length=1000)
+    start_date: str | None = None
+    end_date: str | None = None
 
     @field_validator("query")
     @classmethod
     def nonempty_query(cls, value: str) -> str:
-        if len(value.strip()) < 5:
-            raise ValueError("请用一句话描述目的地和日期")
+        if len(value.strip()) < 2:
+            raise ValueError("请告诉我你想去哪里")
         return value.strip()
+
+    @field_validator("start_date", "end_date")
+    @classmethod
+    def valid_optional_date(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        from datetime import date
+
+        try:
+            parsed = date.fromisoformat(value)
+        except ValueError:
+            raise ValueError("请选择有效日期") from None
+        return parsed.isoformat()
 
 
 class NaturalTripResponse(BaseModel):
@@ -143,9 +158,20 @@ def create_plan_from_text(payload: NaturalTripRequest) -> NaturalTripResponse | 
     intent_tracker = LlmUsageTracker()
     token = current_llm_usage_tracker.set(intent_tracker)
     try:
-        request = parse_trip_intent(payload.query)
+        if payload.start_date or payload.end_date:
+            request = parse_trip_intent(
+                payload.query,
+                start_date_override=payload.start_date,
+                end_date_override=payload.end_date,
+            )
+        else:
+            # 保持单参数调用，兼容现有集成和扩展。
+            request = parse_trip_intent(payload.query)
     except TripIntentError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return JSONResponse(
+            status_code=422,
+            content={"detail": str(exc), "missing_fields": exc.missing_fields},
+        )
     except Exception as exc:  # noqa: BLE001
         logger.exception("旅行需求解析失败")
         if _is_llm_quota_error(exc):

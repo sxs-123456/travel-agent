@@ -99,12 +99,36 @@ def test_natural_language_trip_plan(monkeypatch):
 
 def test_natural_language_missing_information(monkeypatch):
     def missing(_query):
-        raise intent.TripIntentError("请补充返程日期")
+        raise intent.TripIntentError("请补充返程日期", ["end_date"])
 
     monkeypatch.setattr(api_main, "parse_trip_intent", missing)
     response = client.post("/api/trip-plan/from-text", json={"query": "我想从上海去北京玩"})
     assert response.status_code == 422
     assert "返程日期" in response.json()["detail"]
+    assert response.json()["missing_fields"] == ["end_date"]
+
+
+def test_date_picker_values_are_forwarded_to_intent_parser(monkeypatch):
+    captured = {}
+
+    def parse_with_dates(query, **kwargs):
+        captured.update({"query": query, **kwargs})
+        return TripPlanRequest(
+            city="北京", start_date=kwargs["start_date_override"],
+            end_date=kwargs["end_date_override"],
+        )
+
+    monkeypatch.setattr(api_main, "parse_trip_intent", parse_with_dates)
+    monkeypatch.setattr(TripPlannerAgent, "plan_trip", lambda self, request: _sample_plan())
+    response = client.post("/api/trip-plan/from-text", json={
+        "query": "我想去北京玩",
+        "start_date": "2026-10-01",
+        "end_date": "2026-10-04",
+    })
+
+    assert response.status_code == 200
+    assert captured["start_date_override"] == "2026-10-01"
+    assert captured["end_date_override"] == "2026-10-04"
 
 
 def test_natural_language_planner_failure_is_returned(monkeypatch):

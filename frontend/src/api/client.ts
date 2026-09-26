@@ -16,13 +16,40 @@ export async function createTripPlan(req: TripPlanRequest): Promise<TripPlan> {
 }
 
 /** Convert a sentence into a validated request and generate a plan. */
-export async function createTripPlanFromText(query: string): Promise<NaturalTripResponse> {
+export class TripRequestError extends Error {
+  missingFields: string[];
+
+  constructor(message: string, missingFields: string[] = []) {
+    super(message);
+    this.name = "TripRequestError";
+    this.missingFields = missingFields;
+  }
+}
+
+/** Convert natural language plus optional date-picker values into a validated plan. */
+export async function createTripPlanFromText(
+  query: string,
+  dates?: { startDate?: string; endDate?: string }
+): Promise<NaturalTripResponse> {
   const resp = await fetch(`${API_BASE}/api/trip-plan/from-text`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ query }),
+    body: JSON.stringify({
+      query,
+      start_date: dates?.startDate || null,
+      end_date: dates?.endDate || null,
+    }),
   });
-  if (!resp.ok) throw new Error(await extractDetail(resp));
+  if (!resp.ok) {
+    let body: any = null;
+    try {
+      body = await resp.json();
+    } catch {
+      throw new TripRequestError(`HTTP ${resp.status}`);
+    }
+    const message = detailFromBody(body, `HTTP ${resp.status}`);
+    throw new TripRequestError(message, Array.isArray(body?.missing_fields) ? body.missing_fields : []);
+  }
   return (await resp.json()) as NaturalTripResponse;
 }
 
@@ -35,6 +62,10 @@ async function extractDetail(resp: Response): Promise<string> {
   } catch {
     return fallback;
   }
+  return detailFromBody(body, fallback);
+}
+
+function detailFromBody(body: any, fallback: string): string {
   const detail = body?.detail;
   if (Array.isArray(detail)) {
     return detail
