@@ -1,4 +1,7 @@
 """FastAPI 接口契约测试；外部依赖使用桩替换。"""
+import threading
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -95,6 +98,41 @@ def test_natural_language_trip_plan(monkeypatch):
     assert response.json()["request"]["origin_city"] == "上海"
     assert response.json()["request"]["city"] == "北京"
     assert response.json()["plan"]["days"]
+
+
+def test_trip_job_returns_before_slow_planner_finishes(monkeypatch):
+    extracted = TripPlanRequest(
+        city="北京", origin_city="上海", start_date="2026-10-01", end_date="2026-10-04"
+    )
+    release = threading.Event()
+    monkeypatch.setattr(api_main, "parse_trip_intent", lambda query, **kwargs: extracted)
+
+    def slow_plan(_self, _request):
+        assert release.wait(timeout=2)
+        return _sample_plan()
+
+    monkeypatch.setattr(TripPlannerAgent, "plan_trip", slow_plan)
+    started = time.perf_counter()
+    response = client.post("/api/trip-plan/jobs", json={
+        "query": "十月一号到十月四号从上海去北京",
+    })
+    elapsed = time.perf_counter() - started
+    assert response.status_code == 202
+    assert elapsed < 0.5
+    job_id = response.json()["job_id"]
+
+    running = client.get(f"/api/trip-plan/jobs/{job_id}")
+    assert running.status_code == 200
+    assert running.json()["status"] in {"pending", "running"}
+
+    release.set()
+    for _ in range(20):
+        finished = client.get(f"/api/trip-plan/jobs/{job_id}").json()
+        if finished["status"] == "complete":
+            break
+        time.sleep(0.02)
+    assert finished["status"] == "complete"
+    assert finished["result"]["plan"]["city"] == "杭州"
 
 
 def test_natural_language_missing_information(monkeypatch):

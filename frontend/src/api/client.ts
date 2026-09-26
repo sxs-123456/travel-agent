@@ -31,7 +31,7 @@ export async function createTripPlanFromText(
   query: string,
   dates?: { startDate?: string; endDate?: string }
 ): Promise<NaturalTripResponse> {
-  const resp = await fetch(`${API_BASE}/api/trip-plan/from-text`, {
+  const resp = await fetch(`${API_BASE}/api/trip-plan/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -50,7 +50,27 @@ export async function createTripPlanFromText(
     const message = detailFromBody(body, `HTTP ${resp.status}`);
     throw new TripRequestError(message, Array.isArray(body?.missing_fields) ? body.missing_fields : []);
   }
-  return (await resp.json()) as NaturalTripResponse;
+  const created = (await resp.json()) as { job_id: string };
+  if (!created.job_id) throw new TripRequestError("\u672a\u80fd\u521b\u5efa\u884c\u7a0b\u751f\u6210\u4efb\u52a1\u3002");
+
+  for (let attempt = 0; attempt < 240; attempt += 1) {
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+    const statusResp = await fetch(`${API_BASE}/api/trip-plan/jobs/${created.job_id}`, {
+      cache: "no-store",
+    });
+    if (!statusResp.ok) {
+      throw new TripRequestError(await extractDetail(statusResp));
+    }
+    const job = await statusResp.json();
+    if (job.status === "complete") return job.result as NaturalTripResponse;
+    if (job.status === "failed") {
+      throw new TripRequestError(
+        typeof job.detail === "string" ? job.detail : "\u884c\u7a0b\u751f\u6210\u5931\u8d25\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002",
+        Array.isArray(job.missing_fields) ? job.missing_fields : []
+      );
+    }
+  }
+  throw new TripRequestError("\u884c\u7a0b\u751f\u6210\u8d85\u65f6\uff0c\u8bf7\u7a0d\u540e\u91cd\u8bd5\u3002");
 }
 
 /** 从 FastAPI 错误响应中提取可读错误信息。422 的 detail 是错误数组，逐项取 msg 并拼接。 */

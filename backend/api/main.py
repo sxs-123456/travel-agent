@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import logging
 import os
+import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from time import perf_counter
+from time import perf_counter, time
 from uuid import uuid4
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[2]
@@ -117,6 +120,47 @@ class NaturalTripResponse(BaseModel):
     plan: TripPlan
 
 
+_job_executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="trip-job")
+_job_lock = threading.Lock()
+_jobs: dict[str, dict] = {}
+_JOB_TTL_SECONDS = 60 * 60
+
+
+def _clean_expired_jobs() -> None:
+    cutoff = time() - _JOB_TTL_SECONDS
+    with _job_lock:
+        expired = [job_id for job_id, job in _jobs.items() if job["created_at"] < cutoff]
+        for job_id in expired:
+            _jobs.pop(job_id, None)
+
+
+def _run_trip_job(job_id: str, payload: NaturalTripRequest) -> None:
+    with _job_lock:
+        _jobs[job_id]["status"] = "running"
+    try:
+        response = create_plan_from_text(payload)
+        if isinstance(response, JSONResponse):
+            body = json.loads(response.body.decode("utf-8"))
+            update = {
+                "status": "failed",
+                "detail": body.get("detail", "行程生成失败，请稍后重试。"),
+                "missing_fields": body.get("missing_fields", []),
+                "http_status": response.status_code,
+            }
+        else:
+            update = {"status": "complete", "result": response.model_dump(mode="json")}
+    except Exception as exc:  # noqa: BLE001 - background boundary must retain a result
+        logger.exception("后台行程任务失败 job_id=%s", job_id)
+        update = {
+            "status": "failed",
+            "detail": "行程生成暂时不可用，请稍后重试。",
+            "missing_fields": [],
+            "http_status": 502,
+        }
+    with _job_lock:
+        _jobs[job_id].update(update)
+
+
 @app.get("/health")
 def health() -> dict:
     return {"status": "ok"}
@@ -189,6 +233,26 @@ def create_plan_from_text(payload: NaturalTripRequest) -> NaturalTripResponse | 
                 (metrics.estimated_cost_usd or 0) + intent_usage["estimated_cost_usd"], 6
             )
     return NaturalTripResponse(request=request, plan=result)
+
+
+@app.post("/api/trip-plan/jobs", status_code=202)
+def create_trip_job(payload: NaturalTripRequest) -> dict[str, str]:
+    """Start long-running generation without holding the HTTP request open."""
+    _clean_expired_jobs()
+    job_id = uuid4().hex
+    with _job_lock:
+        _jobs[job_id] = {"status": "pending", "created_at": time()}
+    _job_executor.submit(_run_trip_job, job_id, payload.model_copy(deep=True))
+    return {"job_id": job_id, "status": "pending"}
+
+
+@app.get("/api/trip-plan/jobs/{job_id}")
+def get_trip_job(job_id: str) -> dict:
+    with _job_lock:
+        job = _jobs.get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="生成任务不存在或已过期，请重新提交。")
+        return {key: value for key, value in job.items() if key != "created_at"}
 
 
 # ---------------------------------------------------------------------------
