@@ -70,10 +70,10 @@ def _extract_missing_fields(exc) -> list[str]:
     return re.findall(r"([\w\.\[\]0-9]+)\s*\n\s*Field required \[type=missing", str(exc))
 
 
-def _strengthen_prompt(prompt, missing: list[str] | None = None):
-    """json_mode 重试时强化 prompt：明确点名必填字段。
+def _strengthen_prompt(prompt, missing: list[str] | None = None, schema=None):
+    """json_mode 重试时强化 prompt，避免生成当前 schema 之外的字段。
 
-    missing 为空时给通用提示；非空时把缺失字段列出来让 LLM 补回。
+    missing 为空时列出当前字段；非空时把缺失字段列出来让 LLM 补回。
     """
     if missing:
         suffix = (
@@ -82,9 +82,11 @@ def _strengthen_prompt(prompt, missing: list[str] | None = None):
             + "。请重新生成完整 JSON，不要遗漏。"
         )
     else:
+        fields = " / ".join(getattr(schema, "model_fields", {}))
         suffix = (
-            "\n【重要】请确保输出包含所有必填字段（city / start_date / end_date / "
-            "days / weather_info / budget 等），一个都不能少。"
+            "\n【重要】JSON 只能使用 schema 中的字段名"
+            + (f"（{fields}）" if fields else "")
+            + "；不要改用同义字段名，字段值类型须与 schema 一致。"
         )
     if isinstance(prompt, str):
         return prompt + suffix
@@ -140,7 +142,7 @@ def structured_chain(llm, schema):
                         raise
                     missing = _extract_missing_fields(exc)
                     return self._fallback_json(
-                        _strengthen_prompt(prompt, missing or None),
+                        _strengthen_prompt(prompt, missing or None, schema),
                         retried=True, **kwargs,
                     )
             if out is None:
@@ -150,7 +152,7 @@ def structured_chain(llm, schema):
                         "或换用更稳定的模型（如 deepseek-chat / gpt-4o-mini）。"
                     )
                 return self._fallback_json(
-                    _strengthen_prompt(prompt), retried=True, **kwargs
+                    _strengthen_prompt(prompt, schema=schema), retried=True, **kwargs
                 )
             return out
 
@@ -172,6 +174,7 @@ def structured_chain(llm, schema):
                         _strengthen_prompt(
                             prompt,
                             ["arguments 必须是完整可解析的 JSON 对象，不要追加任何额外字符"],
+                            schema,
                         ),
                         *args, **kwargs,
                     )
@@ -188,7 +191,7 @@ def structured_chain(llm, schema):
             # function_calling 偶发返回 None（工具未被触发）或非 schema 实例
             # （漏字段/校验失败被静默吞掉）：用 json_mode 兜底重试一次
             if out is None or not isinstance(out, schema):
-                return self._fallback_json(_strengthen_prompt(prompt), **kwargs)
+                return self._fallback_json(_strengthen_prompt(prompt, schema=schema), **kwargs)
             return out
 
     return _Chain()

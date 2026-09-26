@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import AliasChoices, BaseModel, Field, ValidationError, field_validator
 
 from backend.agents.base import get_llm, structured_chain
 from backend.models.trip import TripPlanRequest
@@ -13,13 +13,29 @@ from backend.models.trip import TripPlanRequest
 class TripIntent(BaseModel):
     """Only facts actually present in the user's message belong here."""
 
-    city: str | None = Field(None, description="目的地城市；未提及时为 null")
+    city: str | None = Field(
+        None,
+        validation_alias=AliasChoices("city", "destination_city"),
+        description="目的地城市；未提及时为 null",
+    )
     origin_city: str | None = Field(None, description="出发城市；未提及时为 null")
     start_date: str | None = Field(None, description="出发日期，YYYY-MM-DD；未提及时为 null")
     end_date: str | None = Field(None, description="返程日期，YYYY-MM-DD；未提及时为 null")
     preferences: str | None = Field(None, description="用户明确提到的游玩偏好；没有则为 null")
-    budget_level: str | None = Field(None, description="经济、中等或豪华；没有则为 null")
+    budget_level: str | None = Field(
+        None,
+        validation_alias=AliasChoices("budget_level", "budget"),
+        description="经济、中等或豪华；没有则为 null",
+    )
     travelers: int | None = Field(None, description="明确提到的人数；没有则为 null")
+
+    @field_validator("preferences", mode="before")
+    @classmethod
+    def join_preference_list(cls, value):
+        """兼容模型把多个偏好返回为字符串列表。"""
+        if isinstance(value, list) and all(isinstance(item, str) for item in value):
+            return "、".join(item.strip() for item in value if item.strip()) or None
+        return value
 
 
 class TripIntentError(ValueError):

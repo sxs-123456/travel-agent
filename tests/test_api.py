@@ -142,3 +142,45 @@ def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
     chain.result = intent.TripIntent(city="北京", start_date="2026-10-07", end_date="2026-10-01")
     with pytest.raises(intent.TripIntentError, match="返程日期不能早于出发日期"):
         intent.parse_trip_intent("十月七号到十月一号去北京")
+
+
+def test_intent_json_fallback_accepts_observed_provider_shape(monkeypatch):
+    """DeepSeek JSON mode can use synonyms and a list for food preferences."""
+    provider_output = {
+        "origin_city": "上海",
+        "destination_city": "南京",
+        "start_date": "2026-10-01",
+        "end_date": "2026-10-04",
+        "budget": "豪华",
+        "preferences": ["美食"],
+    }
+    fallback_prompts = []
+
+    class NoToolCall:
+        def invoke(self, _prompt):
+            return None
+
+    class JsonMode:
+        def invoke(self, prompt):
+            fallback_prompts.append(str(prompt))
+            return intent.TripIntent.model_validate(provider_output)
+
+    class FakeLlm:
+        def with_structured_output(self, _schema, method):
+            return NoToolCall() if method == "function_calling" else JsonMode()
+
+    monkeypatch.setattr(intent, "get_llm", lambda **_kwargs: FakeLlm())
+    request = intent.parse_trip_intent(
+        "计划一份十月一号到十月四号四天三晚的南京游玩攻略，"
+        "从上海出发，爱好美食预算充足"
+    )
+
+    assert request.city == "南京"
+    assert request.origin_city == "上海"
+    assert request.start_date == "2026-10-01"
+    assert request.end_date == "2026-10-04"
+    assert request.preferences == "美食"
+    assert request.budget_level == "豪华"
+    assert fallback_prompts
+    assert "preferences" in fallback_prompts[0]
+    assert "weather_info" not in fallback_prompts[0]
