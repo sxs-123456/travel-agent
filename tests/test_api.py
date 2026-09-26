@@ -216,6 +216,12 @@ def test_intent_extraction_validates_missing_and_invalid_values(monkeypatch):
     assert intent._extract_travelers("\u4e00\u4e2a\u4eba\u51fa\u53d1") == 1
     assert intent._extract_travelers("\u4e24\u4e2a\u4eba\u51fa\u53d1") == 2
     assert intent._extract_travelers("12\u4f4d\u6e38\u5ba2") == 12
+    assert intent._extract_budget_level(
+        "\u9884\u7b973000", "2026-09-27", "2026-10-02", 1
+    ) == "\u4e2d\u7b49"
+    assert intent._extract_budget_level(
+        "\u4e24\u4e2a\u4eba\u9884\u7b973\u5343", "2026-10-01", "2026-10-03", 2
+    ) == "\u4e2d\u7b49"
 
     class FakeChain:
         result = None

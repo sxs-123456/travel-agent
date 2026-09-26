@@ -24,8 +24,9 @@ _TRAVELER_RE = re.compile(
     r"(?P<count>\d+|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341\u4e24]+)\s*"
     r"(?:\u4e2a)?(?:\u4eba|\u4f4d)"
 )
-_BUDGET_EVIDENCE_RE = re.compile(
-    r"(?:\u9884\u7b97|\u7ecf\u6d4e|\u7701\u94b1|\u5b9e\u60e0|\u4e2d\u7b49|\u8212\u9002|\u8c6a\u534e|\u5145\u8db3|\u6709\u9650|\u4e0d\u5dee\u94b1)"
+_BUDGET_AMOUNT_RE = re.compile(
+    r"(?:\u603b?\u9884\u7b97)\s*(?:\u7ea6|\u5927\u6982|\u63a7\u5236\u5728)?\s*"
+    r"[\uffe5\u00a5]?\s*(?P<amount>\d+(?:\.\d+)?)\s*(?P<unit>\u4e07|\u5343|[kK]|\u5143)?"
 )
 _PREFERENCE_EVIDENCE_RE = re.compile(
     r"(?:\u559c\u6b22|\u504f\u597d|\u7231\u597d|\u60f3\u901b|\u60f3\u770b|\u60f3\u5403|\u60f3\u53bb)"
@@ -69,6 +70,46 @@ def _extract_travelers(query: str) -> int | None:
         return 2
     match = _TRAVELER_RE.search(query)
     return _chinese_number(match.group("count")) if match else None
+
+
+def _extract_budget_level(
+    query: str,
+    start_date: str | None,
+    end_date: str | None,
+    travelers: int | None,
+) -> str | None:
+    if re.search(r"(?:\u7ecf\u6d4e|\u7701\u94b1|\u5b9e\u60e0|\u9884\u7b97\u6709\u9650)", query):
+        return "\u7ecf\u6d4e"
+    if re.search(r"(?:\u8c6a\u534e|\u9884\u7b97\u5145\u8db3|\u4e0d\u5dee\u94b1)", query):
+        return "\u8c6a\u534e"
+    if re.search(r"(?:\u4e2d\u7b49|\u8212\u9002)\s*\u9884\u7b97|\u9884\u7b97\s*(?:\u4e2d\u7b49|\u8212\u9002)", query):
+        return "\u4e2d\u7b49"
+
+    match = _BUDGET_AMOUNT_RE.search(query)
+    if not match:
+        return None
+    amount = float(match.group("amount"))
+    unit = match.group("unit") or ""
+    if unit == "\u4e07":
+        amount *= 10000
+    elif unit in {"\u5343", "k", "K"}:
+        amount *= 1000
+
+    days = 1
+    if start_date and end_date:
+        try:
+            days = max(
+                1,
+                (datetime.fromisoformat(end_date).date() - datetime.fromisoformat(start_date).date()).days + 1,
+            )
+        except ValueError:
+            pass
+    per_person_day = amount / max(1, travelers or 1) / days
+    if per_person_day <= 400:
+        return "\u7ecf\u6d4e"
+    if per_person_day <= 1200:
+        return "\u4e2d\u7b49"
+    return "\u8c6a\u534e"
 
 
 class TripIntent(BaseModel):
@@ -163,8 +204,9 @@ def parse_trip_intent(
     if not _mentions_place(query, intent.origin_city):
         intent.origin_city = None
     intent.travelers = _extract_travelers(query)
-    if not _BUDGET_EVIDENCE_RE.search(query):
-        intent.budget_level = None
+    intent.budget_level = _extract_budget_level(
+        query, intent.start_date, intent.end_date, intent.travelers
+    )
     if not _PREFERENCE_EVIDENCE_RE.search(query):
         intent.preferences = None
 
