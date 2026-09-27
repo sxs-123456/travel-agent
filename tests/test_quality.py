@@ -314,6 +314,27 @@ def test_prepare_reserves_grounded_candidates_for_each_day():
     assert len(ids) == len(set(ids)) == 4
 
 
+def test_prepare_uses_one_verified_outlier_as_dedicated_day_trip():
+    from backend.agents.planner import PlannerAgent
+    from backend.models.trip import Hotel
+
+    hotel = Hotel(name="中心酒店", location=Location(longitude=120, latitude=30))
+    attrs = [
+        Attraction(source_id="near-1", name="园林一", location=hotel.location),
+        Attraction(source_id="near-2", name="园林二", location=Location(longitude=120.1, latitude=30)),
+        Attraction(source_id="day-trip", name="水乡古镇", location=Location(longitude=120.5, latitude=30)),
+    ]
+    candidate = TripPlan(
+        city="苏州", start_date="2026-10-01", end_date="2026-10-03",
+        days=[DayPlan(day=i + 1, date=f"2026-10-0{i + 1}", attractions=attrs[:2], hotel=hotel)
+              for i in range(3)],
+    )
+    req = request().model_copy(update={"city": "苏州", "end_date": "2026-10-03"})
+    PlannerAgent().prepare_plan(candidate, req, attrs, [hotel])
+    assert all(day.attractions for day in candidate.days)
+    assert candidate.days[2].attractions[0].source_id == "day-trip"
+
+
 def test_transit_routes_are_queried_in_parallel(monkeypatch):
     import time
     import backend.agents.planner as planner_module

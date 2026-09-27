@@ -583,6 +583,20 @@ class PlannerAgent:
                     continue
                 kept.append(item.model_copy(deep=True))
                 used_ids.add(item.source_id)
+            # If a city has too few central POIs for all days, keep one nearest
+            # verified outlying POI as a dedicated day trip instead of an empty day.
+            if not kept:
+                remote = min(
+                    (
+                        item for item in candidates
+                        if item.source_id and item.source_id not in used_ids
+                    ),
+                    key=lambda item: cls._haversine_km(anchor, item.location),
+                    default=None,
+                )
+                if remote is not None:
+                    kept.append(remote.model_copy(deep=True))
+                    used_ids.add(remote.source_id)
             if [item.source_id for item in kept] != [item.source_id for item in original]:
                 day.notes = (
                     (day.notes + "；" if day.notes else "")

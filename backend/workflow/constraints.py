@@ -157,10 +157,11 @@ class ConstraintChecker:
                     message=f"Day {day_plan.day} 的游玩与通勤预计超过 10 小时",
                     path=f"days.{day_plan.day}",
                 ))
-            if (day_plan.route_distance_km or 0) > 60:
+            route_limit = 120 if len(day_plan.attractions) == 1 else 60
+            if (day_plan.route_distance_km or 0) > route_limit:
                 violations.append(ConstraintViolation(
                     code="route_too_long",
-                    message=f"Day {day_plan.day} 的市内路线距离过长",
+                    message=f"Day {day_plan.day} 的路线距离超过 {route_limit} 公里",
                     path=f"days.{day_plan.day}.route_distance_km",
                 ))
             for previous, current in zip(day_plan.attractions, day_plan.attractions[1:]):
