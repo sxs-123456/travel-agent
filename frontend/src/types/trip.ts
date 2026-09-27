@@ -21,6 +21,7 @@ export interface Attraction {
   ticket_price_note?: string | null;
   description: string;
   recommended_duration: number;
+  opening_hours?: string | null;
   image_url?: string | null;
   image_source?: string | null;
 }
@@ -36,6 +37,7 @@ export interface Meal {
 }
 
 export interface Hotel {
+  source_id?: string | null;
   name: string;
   location: Location;
   price_per_night: number;
@@ -112,6 +114,26 @@ export interface TripPlan {
   train_info?: TrainRecommendation[] | null;
   train_note?: string | null;
   generation_metrics?: GenerationMetrics | null;
+  workflow_metrics?: WorkflowMetrics | null;
+}
+
+export interface WorkflowMetrics {
+  trace_id: string;
+  status: string;
+  loop_count: number;
+  replan_count: number;
+  tool_calls: number;
+  tool_successes: number;
+  retry_count: number;
+  fallback_count: number;
+  total_latency_ms: number;
+  constraint_report?: {
+    passed: boolean;
+    grounded_poi_rate: number;
+    constraint_satisfaction_rate: number;
+    duplicate_rate: number;
+    hallucination_rate: number;
+  } | null;
 }
 
 export interface GenerationMetrics {
@@ -130,6 +152,7 @@ export interface TripPlanRequest {
   end_date: string;
   preferences: string;
   budget_level: string;
+  budget_max?: number | null;
   travelers: number;
   // 必须与后端 TripPlanRequest.origin_city 字段同名（同 snake_case），
   // 否则 Pydantic 接收时找不到该 key，默认置空 → 12306 车次被跳过。

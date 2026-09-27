@@ -61,6 +61,10 @@ def main() -> None:
                         plan.generation_metrics.model_dump()
                         if plan.generation_metrics else None
                     ),
+                    "workflow": (
+                        plan.workflow_metrics.model_dump(mode="json")
+                        if plan.workflow_metrics else None
+                    ),
                 }
             except Exception as exc:  # each case must remain visible in the report
                 record = {

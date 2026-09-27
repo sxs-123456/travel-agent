@@ -13,7 +13,6 @@ from backend.models.trip import (
     Budget,
     DayPlan,
     Hotel,
-    Meal,
     TrainOption,
     TrainRecommendation,
     TrainSeat,
@@ -50,19 +49,10 @@ def _same_scenic_area(a: str, b: str) -> bool:
     return False
 
 
-class MealDraft(BaseModel):
-    """模型可建议餐饮文本与参考人均，不生成未经地图核实的坐标。"""
-
-    name: str
-    price: int = Field(0, ge=0)
-    cuisine: str = ""
-
-
 class DayPlanDraft(BaseModel):
     """LLM 输出的最小单日草稿；事实字段由后端恢复。"""
 
     attraction_ids: list[str] = Field(default_factory=list)
-    meals: list[MealDraft] = Field(default_factory=list)
     notes: str = ""
 
 
@@ -107,12 +97,7 @@ class PlannerAgent:
                 day=index + 1,
                 date=current_date,
                 attractions=selected,
-                meals=[Meal(
-                    name=meal.name,
-                    location=None,
-                    price=meal.price,
-                    cuisine=meal.cuisine,
-                ) for meal in draft_day.meals],
+                meals=[],
                 hotel=hotel,
                 notes=draft_day.notes,
             ))
@@ -392,10 +377,13 @@ class PlannerAgent:
         attractions: list[Attraction],
         weather: list[WeatherInfo],
         hotels: list[Hotel],
+        constraint_feedback: list[str] | None = None,
     ) -> TripPlan:
         # 真实模式：由 LLM 基于真实候选数据生成逐日行程；
         # 预算与天气另行用真实数据覆盖，确保「仅真实数据、不保留任何 Mock」。
-        return self._build_with_llm(request, attractions, weather, hotels)
+        return self._build_with_llm(
+            request, attractions, weather, hotels, constraint_feedback
+        )
 
     @staticmethod
     def _compute_budget(request, days, hotel, rail=None, rail_is_estimated=True) -> Budget:
@@ -445,7 +433,10 @@ class PlannerAgent:
         )
 
     # ----- 真实模式：LLM 结构化生成 -----
-    def _build_with_llm(self, request, attractions, weather, hotels) -> TripPlan:
+    def build_draft(
+        self, request, attractions, weather, hotels,
+        constraint_feedback: list[str] | None = None,
+    ) -> TripPlan:
         attr_text = "\n".join(
             f"  - [{a.source_id}] {a.name}（门票¥{a.ticket_price}，坐标 "
             f"{a.location.longitude},{a.location.latitude}）"
@@ -474,9 +465,16 @@ class PlannerAgent:
             f"2. 每天安排 2-3 个景点，只把候选方括号中的 ID 填入 attraction_ids；\n"
             f"3. 【防重复】每天必须去**不同的景区**，任何景点（含同一景区的子景点）"
             f"在整个行程中只能出现一次——严禁把同一景区排进多天；\n"
-            f"4. 每天含午餐建议；把相邻/顺路的景点排到同一天；\n"
-            f"5. 不输出城市、日期、酒店、坐标、门票、预算或天气，这些由系统补全。"
+            f"4. 把相邻或顺路的景点排到同一天；\n"
+            f"5. 不输出餐厅、城市、日期、酒店、坐标、门票、预算或天气，"
+            f"这些事实全部由真实数据工具补全。"
         )
+        if constraint_feedback:
+            prompt += (
+                "\n独立约束检查器发现以下问题。只调整 attraction_ids 的逐日分配与顺序，"
+                "仍不得生成任何候选列表之外的事实：\n- "
+                + "\n- ".join(constraint_feedback)
+            )
         llm = get_llm(temperature=0.2)
         chain = structured_chain(llm, ItineraryDraft)
         draft: ItineraryDraft = chain.invoke(prompt)
@@ -496,32 +494,62 @@ class PlannerAgent:
             if remaining:
                 logger.warning("规划草稿修复后仍有问题：%s", remaining)
 
-        # 后处理：跨天景点去重（LLM 偶发违规，同名或同一景区子景点视为重复，
-        # 只保留首次出现，保证「每天不同景区」的体验）。
+        return plan
+
+    def build_deterministic_draft(
+        self, request: TripPlanRequest, attractions: list[Attraction], hotels: list[Hotel]
+    ) -> TripPlan:
+        """Fallback draft using only verified source IDs and stable round-robin ordering."""
+        if not attractions:
+            raise RuntimeError("没有可用于确定性规划的真实景点候选")
+        total_days = request.total_days()
+        per_day = 2 if len(attractions) >= total_days * 2 else 1
+        days = []
+        cursor = 0
+        for _ in range(total_days):
+            selected = attractions[cursor: cursor + per_day]
+            cursor += per_day
+            if not selected:
+                selected = [attractions[(cursor - 1) % len(attractions)]]
+            days.append(DayPlanDraft(
+                attraction_ids=[item.source_id for item in selected if item.source_id],
+                notes="由确定性兜底规划生成，景点均来自真实候选。",
+            ))
+        plan, _ = self._materialize_draft(
+            request, ItineraryDraft(days=days), attractions, hotels
+        )
+        return plan
+
+    def prepare_plan(
+        self, plan: TripPlan, request: TripPlanRequest,
+        attractions: list[Attraction], hotels: list[Hotel],
+    ) -> Hotel | None:
+        """Apply deterministic source restoration, deduplication and route ordering."""
         self._dedupe_attractions_across_days(plan)
         self._fill_empty_days(plan, attractions)
-
-        # 后处理：酒店只出现在「过夜的晚上」。N 天行程 = N-1 晚，返程当天不住店；
-        # 把返程日（及之后）的 hotel 置空，避免时间轴显示「多订一晚」。
         self._strip_return_day_hotel(plan, request)
-
-        # 酒店：多晚住同一家（hotels[0] 已是高德真实候选 + 参考价 + 档次/评分），
-        # 统一替换所有过夜日的 hotel，并覆盖 LLM 可能臆造/改写的名称与价格。
         hotel = self._apply_single_hotel(plan, hotels)
-
-        # 最近邻排序后并发查询每天各段公交/地铁路线。
         self._optimize_routes(plan)
-        self._enrich_transit_advice(plan)
+        return hotel
 
-        # 用每日中段景点附近的高德真实餐厅覆盖模型餐饮建议；查询失败时保留原建议。
+    def enrich_routes(self, plan: TripPlan) -> TripPlan:
+        """Attach real AMap transit routes, with deterministic distance fallback."""
+        self._enrich_transit_advice(plan)
+        return plan
+
+    @staticmethod
+    def enrich_restaurants(plan: TripPlan) -> TripPlan:
+        """Replace empty meal slots with real restaurant POIs; never invent restaurants."""
         for day_number, meal in recommend_restaurants(plan.days).items():
             day = next((item for item in plan.days if item.day == day_number), None)
             if day is not None:
                 day.meals = [meal]
+        return plan
 
-        # 城际交通：USE_RAIL_MCP 且提供出发城市时，用 12306 官方直连的真实往返票价，
-        # 并生成「车次选择推荐」（候选车次列表 + 推荐班次 + 推荐理由）。
-        # 任一前置条件不满足 / 查询失败时，用 train_note 说明原因，避免前端「静默无车票面板」。
+    def enrich_rail(
+        self, request: TripPlanRequest,
+    ) -> tuple[int, bool, list[TrainRecommendation] | None, str | None]:
+        """Return deterministic rail budget inputs and structured 12306 recommendations."""
         rail = 0
         rail_is_estimated = True
         train_info: list[TrainRecommendation] | None = None
@@ -529,33 +557,57 @@ class PlannerAgent:
         if settings.use_rail_mcp and request.origin_city and rail_client.available():
             try:
                 train_info = self._build_train_recommendations(request)
-                # 预算采用「去程推荐 + 返程推荐」的真实票价（单程价 × 出行人数 × 2 方向）
                 go_price = train_info[0].price_per_person
                 back_price = train_info[1].price_per_person
                 if go_price is not None and back_price is not None:
                     rail = (go_price + back_price) * request.travelers
                     rail_is_estimated = False
                 else:
-                    train_note = "12306 已返回车次，但去程或返程票价缺失；火车票未计入总预算，请以 12306 下单页为准。"
-            except Exception as e:
-                logger.warning("12306 真实票价获取失败，火车票不计入预算：%s", e)
-                train_info = None
-                train_note = f"12306 查询失败，火车票未计入总预算（{e}）。"
+                    train_note = (
+                        "12306 已返回车次，但去程或返程票价缺失；"
+                        "火车票未计入总预算，请以 12306 下单页为准。"
+                    )
+            except Exception as exc:  # noqa: BLE001 - rail is an optional enrichment
+                logger.warning("12306 真实票价获取失败，火车票未计入预算：%s", exc)
+                train_note = f"12306 查询失败，火车票未计入总预算（{exc}）。"
         elif not settings.use_rail_mcp:
             train_note = (
                 "未启用 12306（USE_RAIL_MCP=false），火车票价未查询且未计入预算。"
                 "在 Railway 服务变量中设为 true 并重新部署后，重新生成行程即可查询。"
             )
         elif not request.origin_city:
-            train_note = "未填写出发城市，未查询 12306；火车票未计入总预算。填写出发城市后可查询票价与车次。"
+            train_note = (
+                "未填写出发城市，未查询 12306；火车票未计入总预算。"
+                "填写出发城市后可查询票价与车次。"
+            )
+        return rail, rail_is_estimated, train_info, train_note
 
+    def finalize_budget(
+        self, plan: TripPlan, request: TripPlanRequest, hotel: Hotel | None,
+        rail_result: tuple[int, bool, list[TrainRecommendation] | None, str | None],
+    ) -> TripPlan:
+        """Compute budget exclusively from restored tool facts and deterministic formulas."""
+        rail, rail_is_estimated, train_info, train_note = rail_result
         plan.budget = self._compute_budget(
-            request, plan.days, hotel,
-            rail=rail, rail_is_estimated=rail_is_estimated,
+            request, plan.days, hotel, rail=rail, rail_is_estimated=rail_is_estimated,
         )
         plan.train_info = train_info
         plan.train_note = train_note
         return plan
+
+    def _build_with_llm(
+        self, request, attractions, weather, hotels,
+        constraint_feedback: list[str] | None = None,
+    ) -> TripPlan:
+        """Compatibility interface used by existing callers while workflow nodes migrate."""
+        plan = self.build_draft(
+            request, attractions, weather, hotels, constraint_feedback
+        )
+        hotel = self.prepare_plan(plan, request, attractions, hotels)
+        self.enrich_routes(plan)
+        self.enrich_restaurants(plan)
+        rail_result = self.enrich_rail(request)
+        return self.finalize_budget(plan, request, hotel, rail_result)
 
     @staticmethod
     def _build_train_recommendations(request: TripPlanRequest) -> list[TrainRecommendation]:

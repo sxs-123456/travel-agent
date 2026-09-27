@@ -27,10 +27,49 @@ def summarize(records: list[dict]) -> dict:
         if usage.get("estimated_cost_usd") is not None
     ]
     total = len(records)
+    workflows = [record["workflow"] for record in successful if record.get("workflow")]
+    constraint_reports = [
+        workflow["constraint_report"]
+        for workflow in workflows if workflow.get("constraint_report")
+    ]
+    tool_calls = sum(int(item.get("tool_calls", 0)) for item in workflows)
+    tool_successes = sum(int(item.get("tool_successes", 0)) for item in workflows)
+    retries = sum(int(item.get("retry_count", 0)) for item in workflows)
+    fallbacks = sum(int(item.get("fallback_count", 0)) for item in workflows)
+    task_successes = sum(
+        bool(record.get("success"))
+        and (
+            not record.get("workflow")
+            or bool((record["workflow"].get("constraint_report") or {}).get("passed"))
+        )
+        for record in records
+    )
     return {
         "total_cases": total,
         "successful_cases": len(successful),
         "success_rate": round(len(successful) / total, 4) if total else 0.0,
+        "task_success_rate": round(task_successes / total, 4) if total else 0.0,
+        "grounded_poi_rate": (
+            round(mean(item.get("grounded_poi_rate", 0) for item in constraint_reports), 4)
+            if constraint_reports else 0.0
+        ),
+        "constraint_satisfaction_rate": (
+            round(mean(item.get("constraint_satisfaction_rate", 0) for item in constraint_reports), 4)
+            if constraint_reports else 0.0
+        ),
+        "tool_call_success_rate": (
+            round(tool_successes / tool_calls, 4) if tool_calls else 0.0
+        ),
+        "duplicate_rate": (
+            round(mean(item.get("duplicate_rate", 0) for item in constraint_reports), 4)
+            if constraint_reports else 0.0
+        ),
+        "hallucination_rate": (
+            round(mean(item.get("hallucination_rate", 0) for item in constraint_reports), 4)
+            if constraint_reports else 0.0
+        ),
+        "retry_rate": round(retries / tool_calls, 4) if tool_calls else 0.0,
+        "fallback_rate": round(fallbacks / tool_calls, 4) if tool_calls else 0.0,
         "quality_pass_rate": (
             round(sum(bool(report.get("passed")) for report in reports) / len(reports), 4)
             if reports else 0.0

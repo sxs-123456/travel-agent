@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import concurrent.futures as _futures
 import logging
-from time import perf_counter
 from uuid import uuid4
 
 from backend.agents import (
@@ -21,6 +20,21 @@ from backend.observability import LlmUsageTracker, current_llm_usage_tracker
 from backend.tools.images import search_image
 from backend.quality import evaluate_plan
 from backend.tracing import request_id as current_request_id
+from backend.workflow.constraints import ConstraintChecker, SemanticPreferenceChecker
+from backend.workflow.engine import TravelWorkflow
+from backend.workflow.nodes import (
+    AttractionNode,
+    BudgetNode,
+    ConstraintNode,
+    DraftNode,
+    HotelNode,
+    ImageNode,
+    PrepareNode,
+    RailNode,
+    RestaurantNode,
+    RouteNode,
+    WeatherNode,
+)
 
 logger = logging.getLogger("trip-planner")
 
@@ -35,51 +49,19 @@ class TripPlannerAgent:
         self.planner_agent = PlannerAgent()
 
     def plan_trip(self, request: TripPlanRequest) -> TripPlan:
-        # 启动期校验：真实模式必须配置关键密钥，缺失即给出明确提示。
+        """Run the explicit stateful workflow while preserving the public interface."""
         self._require_real_mode()
-
         trace_id = current_request_id.get() or uuid4().hex
         usage_tracker = LlmUsageTracker()
-
-        def run_stage(name, fn, *args):
-            started = perf_counter()
-            status = "ok"
-            try:
-                token = current_llm_usage_tracker.set(usage_tracker)
-                return fn(*args)
-            except Exception:
-                status = "error"
-                raise
-            finally:
-                current_llm_usage_tracker.reset(token)
-                logger.info("agent_stage trace_id=%s stage=%s status=%s duration_ms=%.2f",
-                            trace_id, name, status, (perf_counter() - started) * 1000)
-
-        # 三个子 Agent 互不依赖，并行执行以缩短端到端耗时。
-        with _futures.ThreadPoolExecutor(max_workers=3) as ex:
-            f_attr = ex.submit(run_stage, "attractions", self.attraction_agent.run, request)
-            f_weather = ex.submit(run_stage, "weather", self.weather_agent.run, request)
-            f_hotels = ex.submit(run_stage, "hotels", self.hotel_agent.run, request)
-            attractions = f_attr.result()
-            weather = f_weather.result()
-            hotels = f_hotels.result()
-
-        # 整合为完整行程 + 预算（预算与天气均基于真实数据，不依赖 LLM 臆造）。
-        plan = run_stage("planning", self.planner_agent.run, request, attractions, weather, hotels)
-
-        # 用真实天气覆盖 LLM 可能「重新生成」的 weather_info，确保仅真实数据。
-        plan.weather_info = list(weather)
-
-        # 高德多天预报上限为 4 天，超出部分已由 Open-Meteo 尽力补充；
-        # 若补充源也失败，则在逐日备注中如实提示。
-        forecast_dates = {w.date for w in weather}
-        for d in plan.days:
-            if d.date not in forecast_dates:
-                suffix = "（该日暂无天气预报，未提供）"
-                d.notes = (d.notes + "；" if d.notes else "") + suffix
-
-        # 优先保留 POI 实景图；缺图时并发检索、缓存和去重（Pexels → Openverse）。
-        run_stage("images", self._enrich_images, plan)
+        token = current_llm_usage_tracker.set(usage_tracker)
+        try:
+            state = self._build_workflow().run(
+                request, trace_id=trace_id, max_loops=settings.workflow_max_loops
+            )
+        finally:
+            current_llm_usage_tracker.reset(token)
+        plan = state.plan
+        assert plan is not None
         plan.generation_metrics = GenerationMetrics(**usage_tracker.snapshot(
             model=settings.llm_model,
             input_cost_per_1m_usd=settings.llm_input_cost_per_1m_usd,
@@ -91,6 +73,52 @@ class TripPlannerAgent:
             trace_id, report, plan.generation_metrics.model_dump(),
         )
         return plan
+
+    def _build_workflow(self) -> TravelWorkflow:
+        """Bind current adapters at one seam so tests can replace existing agents."""
+        timeout = settings.tool_timeout_seconds
+        attempts = settings.tool_max_attempts
+        semantic = (
+            SemanticPreferenceChecker()
+            if settings.enable_semantic_constraint_check else None
+        )
+        return TravelWorkflow(
+            attraction_node=AttractionNode(
+                self.attraction_agent, timeout_seconds=timeout, max_attempts=attempts
+            ),
+            weather_node=WeatherNode(
+                self.weather_agent, timeout_seconds=timeout, max_attempts=attempts
+            ),
+            hotel_node=HotelNode(
+                self.hotel_agent, timeout_seconds=timeout, max_attempts=attempts
+            ),
+            draft_node=DraftNode(
+                self.planner_agent,
+                timeout_seconds=max(60.0, timeout * 2), max_attempts=attempts,
+            ),
+            prepare_node=PrepareNode(
+                self.planner_agent, timeout_seconds=timeout, max_attempts=1
+            ),
+            route_node=RouteNode(
+                self.planner_agent, timeout_seconds=timeout, max_attempts=attempts
+            ),
+            restaurant_node=RestaurantNode(
+                timeout_seconds=timeout, max_attempts=attempts
+            ),
+            rail_node=RailNode(
+                self.planner_agent, timeout_seconds=timeout, max_attempts=attempts
+            ),
+            budget_node=BudgetNode(
+                self.planner_agent, timeout_seconds=timeout, max_attempts=1
+            ),
+            constraint_node=ConstraintNode(
+                ConstraintChecker(semantic),
+                timeout_seconds=max(60.0, timeout * 2), max_attempts=1,
+            ),
+            image_node=ImageNode(
+                self._enrich_images, timeout_seconds=timeout, max_attempts=1
+            ),
+        )
 
     @staticmethod
     def _require_real_mode() -> None:

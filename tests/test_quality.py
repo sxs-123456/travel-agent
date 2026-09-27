@@ -21,7 +21,8 @@ def request():
 def plan():
     return TripPlan(city="杭州", start_date="2026-10-01", end_date="2026-10-02",
                     days=[DayPlan(day=i, date=f"2026-10-0{i}", attractions=[
-                        Attraction(name=f"景点{i}", location=Location(longitude=120, latitude=30))
+                        Attraction(source_id=f"poi-{i}", name=f"景点{i}",
+                                   location=Location(longitude=120, latitude=30))
                     ]) for i in (1, 2)], budget=Budget())
 
 
@@ -61,17 +62,24 @@ def test_weather_aligned_by_date_and_stages_traced(monkeypatch, caplog):
     agent = TripPlannerAgent()
     candidate = plan()
     monkeypatch.setattr(agent, "_require_real_mode", lambda: None)
-    monkeypatch.setattr(agent.attraction_agent, "run", lambda r: [])
+    verified = [day.attractions[0].model_copy(deep=True) for day in candidate.days]
+    monkeypatch.setattr(agent.attraction_agent, "run", lambda r: verified)
     monkeypatch.setattr(agent.weather_agent, "run", lambda r: [
         WeatherInfo(date="2026-10-02", temperature=20, condition="晴")])
     monkeypatch.setattr(agent.hotel_agent, "run", lambda r: [])
-    monkeypatch.setattr(agent.planner_agent, "run", lambda *args: candidate)
+    monkeypatch.setattr(agent.planner_agent, "build_draft", lambda *args: candidate)
     monkeypatch.setattr(agent, "_enrich_images", lambda p: None)
     with caplog.at_level(logging.INFO, logger="trip-planner"):
         result = agent.plan_trip(request())
     assert "暂无天气预报" in result.days[0].notes
     assert "暂无天气预报" not in result.days[1].notes
-    assert sum("agent_stage" in r.message for r in caplog.records) == 5
+    assert {
+        "attractions", "weather", "hotels", "draft", "prepare", "routes",
+        "restaurants", "rail", "budget", "constraints", "images",
+    } <= {
+        record.message.split("stage=", 1)[1].split(" ", 1)[0]
+        for record in caplog.records if "agent_stage" in record.message
+    }
     assert "plan_quality" in caplog.text
 
 
@@ -123,10 +131,10 @@ def test_failed_stage_records_error_without_planning(monkeypatch, caplog):
     monkeypatch.setattr(agent.attraction_agent, "run", fail)
     monkeypatch.setattr(agent.weather_agent, "run", lambda r: [])
     monkeypatch.setattr(agent.hotel_agent, "run", lambda r: [])
-    monkeypatch.setattr(agent.planner_agent, "run", lambda *a: pytest.fail("must not plan"))
-    with caplog.at_level(logging.INFO, logger="trip-planner"), pytest.raises(ValueError):
+    monkeypatch.setattr(agent.planner_agent, "build_draft", lambda *a: pytest.fail("must not plan"))
+    with caplog.at_level(logging.INFO, logger="trip-planner"), pytest.raises(RuntimeError):
         agent.plan_trip(request())
-    assert "stage=attractions status=error" in caplog.text
+    assert "stage=attractions status=failed" in caplog.text
 
 
 def test_recommendation_uses_selected_train_for_price_and_reason(monkeypatch):

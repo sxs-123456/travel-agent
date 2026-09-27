@@ -35,6 +35,7 @@ class HotelAgent:
             key=lambda item: (-(item.get("rating") or 0), item.get("price_estimate") or 10**9),
         )[:3]
         return [Hotel(
+            source_id=item.get("source_id") or None,
             name=item["name"],
             location=item["location"].model_copy(deep=True),
             price_per_night=int(item.get("price_estimate") or 0),

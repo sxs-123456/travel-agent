@@ -1,25 +1,24 @@
 # 智能旅行助手（Trip Planner Agent）
 
-基于《Hello-Agents》第十三章「智能旅行助手」架构实现的 Agent 项目。
-**仅支持真实模式**：景点、天气等数据通过外部接口查询，行程由 LLM 生成；
-酒店和部分交通费用为参考估算，餐饮建议由模型生成。
-缺失密钥会抛出清晰错误，而非回退到伪造结果。
+一个渐进式重构的生产级 Stateful Travel Agent。系统保留高德、12306、百度百科、Open-Meteo 等真实数据源，以强类型 `TravelState` 串联显式节点工作流；LLM 只负责意图抽取、候选 Source ID 选择和可选的语义偏好判断，所有可由数据源或确定性代码获得的事实均不交给模型生成。
 
 ## 特性
 
-- **多智能体协作**：`AttractionSearchAgent`（景点）/ `WeatherQueryAgent`（天气）/
-  `HotelAgent`（酒店）/ `PlannerAgent`（整合行程+预算），由 `TripPlannerAgent` 编排。
+- **Stateful Agent Workflow**：`TravelState` 作为共享状态，显式执行 Discovery → Draft → Prepare → Enrich → Constraint → Replan/Complete。
+- **独立 Tool/Node**：景点、酒店、天气、草稿、路线、餐厅、12306、预算、约束和图片各自封装，并通过统一 `ToolResult` 返回状态、错误、重试次数、fallback、latency 和 source IDs。
+- **并行与韧性**：景点/酒店/天气并行发现，路线/餐厅/车次并行补全；按节点配置 Retry、Timeout、Fallback 和最大循环次数。
 - **自然语言入口**：用户直接描述出发地、目的地和日期；大模型只负责抽取请求字段，缺少目的地或日期时返回补充提示，校验通过后复用原有规划工作流。
 - **真实数据接入**：
   - 高德 POI / 天气（v3 REST）
   - **真实门票**：百度百科词条卡片 API（免费、免 key），如故宫「60元旺季/40元淡季」
   - **车次选择推荐**：12306 官方接口（直连免 key），候选车次列表 + 推荐班次 + 推荐理由
   - 市内交通：高德公交路线提供地铁/公交建议与票价；缺少票价时按乘车段数保守估算
-  - 餐饮：按每日景点位置检索高德真实餐厅 POI 与人均消费
+  - 餐饮：只按每日景点位置检索高德真实餐厅 POI 与人均消费，不再由模型编造餐厅
   - 景点图片：优先使用 POI 返回的实景图；缺图时按“城市 + 地点”搜索 Pexels（可选 key）→ Openverse（兜底）
 - **多天行程不重复**：按天数甄选不同景区 + 跨天同名/同景区后处理去重，保证每天去不同地方。
 - **候选 ID 约束**：LLM 只选择高德 POI ID，名称、坐标和门票由后端恢复；未知 ID 不进入结果。
-- **受控修复**：草稿出现天数错误、空行程、重复或未知 ID 时，最多自动修复一次。
+- **独立 Constraint Checker**：确定性检查 Source ID、重复景点、营业时间、路线距离、每日时间负载、预算一致性和用户硬约束；失败后只进行有限次数 Replan。
+- **可选 MCP 边界**：通过 MCP v2 暴露真实 POI 和天气工具，并由 Client Adapter 转换为统一 `ToolResult`，核心链路仍使用低开销的本地节点。
 - **路线优化**：使用最近邻算法排列景点，并发查询各段高德公交/地铁路线、耗时与票价。
 - **成本可观测**：按一次规划聚合模型调用次数、输入/输出 token；配置模型单价后返回费用估算。
 - **延迟优化**：门票、路线、餐厅和市内交通受控并发；酒店按真实候选确定性排序，减少一次 LLM 调用。
@@ -30,7 +29,7 @@
 
 ## 技术栈
 
-后端：LangChain（ChatOpenAI 兼容）+ Pydantic + FastAPI + httpx
+后端：Python + LangChain（ChatOpenAI 兼容）+ Pydantic + FastAPI + httpx + MCP Python SDK
 前端：Vue3 + TypeScript + Vite + Ant Design Vue
 
 ## 目录结构
@@ -40,14 +39,17 @@ trip-planner-agent/
 ├── backend/
 │   ├── agents/             # 四个专属 Agent + base
 │   ├── tools/              # 高德 / Openverse / 12306 / 百度百科
-│   ├── models/             # Pydantic 数据模型（trip）
+│   ├── models/             # TripPlan / TravelState 共享强类型契约
+│   ├── workflow/           # 显式状态机、Nodes、Constraint Checker
+│   ├── mcp_tools/          # 可选 MCP Server / Client Adapter
 │   ├── api/main.py         # FastAPI 路由 + 静态托管前端
 │   ├── rail_client.py      # 12306 客户端门面
 │   ├── planner.py          # TripPlannerAgent 编排器
 │   ├── config.py           # .env 配置
 │   ├── evaluation.py       # 端到端评测指标汇总
 │   └── run.py              # uvicorn 启动入口
-├── evals/                  # 固定评测案例 + 评测运行器
+├── evals/                  # 固定评测数据集、运行器和真实结果
+├── docs/                   # 架构图与 Benchmark Report
 ├── frontend/               # Vue3 前端
 ├── tests/                  # pytest
 ├── Dockerfile / docker-compose.yml
@@ -68,6 +70,10 @@ AMAP_API_KEY=你的高德Web服务key
 PEXELS_API_KEY=                  # 选填，启用 Pexels 封面图（留空则只用 Openverse）
 USE_RAIL_MCP=true                # 启用 12306 真实火车票
 RAIL_MCP_SEAT_CLASS=二等座
+WORKFLOW_MAX_LOOPS=2             # 包含首次规划，范围 1~5
+TOOL_TIMEOUT_SECONDS=25
+TOOL_MAX_ATTEMPTS=2
+ENABLE_SEMANTIC_CONSTRAINT_CHECK=false
 ```
 
 `frontend/.env` 仅在前后端分开部署时设置 `VITE_API_BASE`；同源部署无需配置。
@@ -117,22 +123,9 @@ python evals/run_evaluation.py --base-url http://127.0.0.1:8001
 结果写入 `evals/results/latest.json`。该命令会真实调用已配置的 LLM 和外部接口，可能产生模型费用；
 简历中的指标应引用实际生成的结果，不应使用测试桩数据。
 
-### 真实评测结果（2026-09-24，优化后）
+### Stateful Agent 真实评测结果
 
-以下指标来自结构化接口 `/api/trip-plan`，不包含新版首页额外的自然语言解析耗时和费用。
-
-在 DeepSeek、高德、Open-Meteo、12306 与图片服务的真实调用链上运行 12 个固定场景：
-
-- API 成功率：`12/12 = 100%`
-- 质量通过率：`12/12 = 100%`
-- 日期覆盖率：`100%`；天气覆盖率：`91.67%`
-- 端到端延迟：P50 `19.25s`，P95 `22.77s`
-- 模型用量：24 次调用，输入 27,165 tokens，输出 4,685 tokens，共 31,850 tokens
-- 相比优化前：P50 降低约 `46.5%`，P95 降低约 `55.2%`，总 token 降低约 `35.2%`
-
-曾出现的洛阳四日游空日问题已通过“通用 POI 补查 + 两级确定性补位”修复；完整 12 场景复测
-质量通过率为 `100%`。正式结果保存在 `evals/results/latest.json`，定向回归结果保存在
-`evals/results/regression-luoyang.json`。
+指标必须通过当前版本真实运行生成，来源是 [`evals/results/latest.json`](evals/results/latest.json)。报告格式、指标定义与复现命令见 [`docs/BENCHMARK.md`](docs/BENCHMARK.md)。旧工作流的历史数字不作为当前架构成绩。
 
 ## 已知限制
 
@@ -142,20 +135,8 @@ python evals/run_evaluation.py --base-url http://127.0.0.1:8001
 - 车次：实际以 12306 下单为准。
 ## 工程化与简历展示
 
-项目采用固定工作流编排：景点、天气、酒店并行采集，再由规划 Agent 整合，最后执行确定性后处理。它不是自主选择任意工具的通用 Agent；面试时可以重点解释并行依赖关系、结构化输出恢复和数据可信边界。
+架构说明与 Mermaid 工作流图见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。CI 在每次 push/PR 执行 Python 编译、完整 pytest、Vue TypeScript 构建和 Docker 镜像构建；Railway 绑定 `main` 分支后负责通过已验证提交持续部署。
 
-- 深模块接口：规划模型只输出每天的候选 POI ID、餐饮建议和备注；城市、日期、酒店、坐标、门票、预算及路线由后端确定性恢复。
-- 景点事实约束：景点通过高德 POI ID 绑定，未知或重复 ID 被拒绝，不接受规划模型自行改写价格与坐标。该约束保证与采集结果一致，不等于上游资料已被独立核实。
-- 输入校验：有效日历日期、统一日期格式、非空目的地，非法请求在调用外部服务之前返回 422。
-- 执行追踪：每次规划记录统一 trace_id，各阶段记录耗时和成功/失败状态；HTTP 响应附 X-Request-ID，与该请求的规划 trace_id 一致。不记录完整用户请求。
-- 质量诊断与修复：草稿结构问题最多触发一次定向重做；最终结果仍由 `backend/quality.py` 独立检查并记录覆盖率与预算一致性，不会无限循环。
-- 路线计算：使用 Haversine 最近邻算法排序景点，再并发查询每日各段公交/地铁路线；接口不可用时按直线距离给出明确的步行或公共交通建议。
-- 成本统计：LangChain 回调按一次请求聚合 LLM 调用和 token；在 `.env` 配置模型单价后同时给出美元费用估算。
-- 固定评测：12 个不同城市、天数、预算和人数的端到端案例，输出成功率、质量通过率及 P50/P95 延迟。
-- 回归测试：HTTP/LLM 使用桩替换，验证字段映射、校验和业务路径，不产生模型费用。
+简历描述建议只引用 `evals/results/latest.json` 中真实生成的数字：
 
-简历描述示例（不要填写未实测的性能数字）：
-
-> 基于 FastAPI、LangChain 与 Vue3 实现旅行规划 Agent 工作流，并行整合景点、酒店、天气数据；以 POI ID 约束模型选择并由后端恢复事实字段，实现一次受控修复、路线距离排序、阶段追踪和固定评测集，覆盖结构化输出异常、推荐一致性与外部服务降级。
-
-后续可继续深化：补充餐厅营业时间；在积累真实评测失败案例后，把修复提示从通用问题列表细化为分类策略；部署到云平台后补充公开演示地址。
+> 基于 FastAPI、LangChain、Pydantic 与 Vue3 构建 Stateful Travel Agent，以强类型 TravelState 和显式 Node Workflow 编排真实数据工具；实现并行 Tool Execution、统一错误与 Trace、受限 Retry/Timeout/Fallback/Replan，并以 Source ID 恢复事实字段、确定性 Constraint Checker 和固定评测集约束幻觉与行程冲突。

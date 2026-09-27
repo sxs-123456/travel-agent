@@ -34,6 +34,12 @@ class Settings:
         )
         # 偏好席别（二等座/一等座/商务座…），未命中时取最低价。
         self.rail_mcp_seat_class: str = os.getenv("RAIL_MCP_SEAT_CLASS", "二等座")
+        self.workflow_max_loops: int = max(1, min(5, int(os.getenv("WORKFLOW_MAX_LOOPS", "2"))))
+        self.tool_timeout_seconds: float = max(1.0, float(os.getenv("TOOL_TIMEOUT_SECONDS", "25")))
+        self.tool_max_attempts: int = max(1, min(3, int(os.getenv("TOOL_MAX_ATTEMPTS", "2"))))
+        self.enable_semantic_constraint_check: bool = os.getenv(
+            "ENABLE_SEMANTIC_CONSTRAINT_CHECK", "false"
+        ).lower() in ("1", "true", "yes", "on")
 
     @property
     def use_real_llm(self) -> bool:

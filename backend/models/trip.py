@@ -11,6 +11,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from backend.models.agent import WorkflowMetrics
+
 
 # ---------------------------------------------------------------------------
 # 基础原子模型
@@ -97,6 +99,9 @@ class Attraction(BaseModel):
     )
     description: str = Field("", description="简介")
     recommended_duration: int = Field(2, ge=1, description="建议游玩时长（小时）")
+    opening_hours: Optional[str] = Field(
+        None, description="真实数据源返回的营业时间；数据源未提供时为 None"
+    )
     image_url: Optional[str] = Field(None, description="景点照片 URL")
     image_source: Optional[str] = Field(None, description="照片来源")
 
@@ -118,6 +123,7 @@ class Meal(BaseModel):
 class Hotel(BaseModel):
     """酒店。"""
 
+    source_id: Optional[str] = Field(None, description="数据源中的稳定酒店 POI ID")
     name: str = Field(..., description="酒店名称")
     location: Location = Field(..., description="坐标")
     price_per_night: int = Field(0, ge=0, description="每晚价格（元）")
@@ -266,6 +272,9 @@ class TripPlan(BaseModel):
     generation_metrics: Optional[GenerationMetrics] = Field(
         None, description="LLM 调用次数、token 与按配置单价估算的费用"
     )
+    workflow_metrics: Optional[WorkflowMetrics] = Field(
+        None, description="Stateful Agent 工作流节点、约束、重试、降级和时延指标"
+    )
 
     def summary(self) -> str:
         lines = [
@@ -290,6 +299,9 @@ class TripPlanRequest(BaseModel):
     end_date: str = Field(..., description="返程日期 YYYY-MM-DD")
     preferences: str = Field("自然风光、历史文化", description="景点偏好")
     budget_level: str = Field("中等", description="预算等级：经济/中等/豪华（决定酒店档次）")
+    budget_max: Optional[int] = Field(
+        None, ge=1, description="用户明确给出的全程总预算上限（元）；未提供时为 None"
+    )
     travelers: int = Field(1, ge=1, description="出行人数")
     origin_city: str = Field("", description="出发城市（用于 12306 真实票价，留空则用估算）")
 

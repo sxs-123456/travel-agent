@@ -47,6 +47,7 @@ def _parse_pois(data: dict) -> list[dict]:
                 address=poi.get("address", ""),
             ),
             "ticket_price": cost,
+            "opening_hours": biz.get("open_time") or poi.get("opentime2") or None,
             "description": poi.get("type", "") or poi.get("address", ""),
             "image_url": image_url,
             "image_source": "高德 POI" if image_url else None,
@@ -114,6 +115,7 @@ def text_search(keywords: str, city: str) -> list[dict]:
         "city": city,
         "citylimit": "true",
         "offset": "20",
+        "extensions": "all",
     }
     resp = httpx.get(f"{AMAP_V3}/place/text", params=params, timeout=10)
     resp.raise_for_status()
@@ -354,6 +356,7 @@ def hotel_search(city: str, keywords: str = "酒店", limit: int = 10, tier: str
         price = estimate_hotel_price(level, rating, city)
         image_url = _first_poi_photo(poi)
         results.append({
+            "source_id": poi.get("id") or "",
             "name": poi.get("name", ""),
             "location": Location(
                 longitude=lon, latitude=lat,

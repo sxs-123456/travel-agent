@@ -112,6 +112,20 @@ def _extract_budget_level(
     return "\u8c6a\u534e"
 
 
+def _extract_budget_max(query: str) -> int | None:
+    """Extract only an explicit total amount; never infer a monetary limit."""
+    match = _BUDGET_AMOUNT_RE.search(query)
+    if not match:
+        return None
+    amount = float(match.group("amount"))
+    unit = match.group("unit") or ""
+    if unit == "\u4e07":
+        amount *= 10000
+    elif unit in {"\u5343", "k", "K"}:
+        amount *= 1000
+    return max(1, round(amount))
+
+
 class TripIntent(BaseModel):
     """Only facts actually present in the user's message belong here."""
 
@@ -248,6 +262,7 @@ def parse_trip_intent(
             "end_date": intent.end_date,
             "preferences": intent.preferences.strip(),
             "budget_level": budget,
+            "budget_max": _extract_budget_max(query),
             "travelers": intent.travelers,
         })
     except ValidationError as exc:

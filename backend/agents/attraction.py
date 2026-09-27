@@ -97,6 +97,7 @@ class AttractionSearchAgent:
                 location=source["location"].model_copy(deep=True),
                 ticket_price=0,
                 description=source.get("description", ""),
+                opening_hours=source.get("opening_hours"),
                 image_url=source.get("image_url"),
                 image_source=source.get("image_source"),
             )
