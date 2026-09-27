@@ -5,6 +5,7 @@
 项目重点解决普通大模型旅行规划中的三个问题：事实容易编造、复杂任务缺少可控流程、结果质量无法量化。系统通过来源 ID 绑定、确定性约束检查、有限重新规划和固定评测集建立可信边界。
 
 - 在线演示：[travel-agent-production-fbc9.up.railway.app](https://travel-agent-production-fbc9.up.railway.app/#/)
+- 部署说明：[Railway 当前部署与其他平台部署步骤](部署说明.md)
 - 架构说明：[有状态智能体架构](docs/ARCHITECTURE.md)
 - 评测依据：[智能体基准测试报告](docs/BENCHMARK.md)
 - 原始评测结果：[evals/results/latest.json](evals/results/latest.json)
@@ -226,7 +227,7 @@ Docker 镜像同时构建 Vue 前端和 FastAPI 后端。GitHub Actions 在每�
 2. Vue TypeScript 检查与生产构建；
 3. Docker 镜像构建。
 
-Railway 绑定 `main` 分支后自动部署通过检查的版本。其他平台的部署步骤见[公网演示部署说明](DEPLOY_DEMO.md)。
+Railway 绑定 `main` 分支后自动部署通过检查的版本。当前线上配置以及迁移到 Cloudflare Pages、Vercel 等平台的步骤见[部署说明](部署说明.md)。
 
 ## 已知限制
 
