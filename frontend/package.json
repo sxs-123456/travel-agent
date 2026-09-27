@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "智能旅行助手前端：Vue3 + TypeScript + Vite + Ant Design Vue + 高德 JS API",
+  "description": "智能旅行助手前端：Vue3 + TypeScript + Vite + Ant Design Vue",
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
@@ -11,7 +11,6 @@
   },
   "dependencies": {
     "ant-design-vue": "^4.2.6",
-    "dayjs": "^1.11.13",
     "vue": "^3.5.13"
   },
   "devDependencies": {

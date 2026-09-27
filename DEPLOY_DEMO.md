@@ -28,7 +28,7 @@ CORS_ORIGINS=https://你的前端域名
 USE_RAIL_MCP=true
 ```
 
-`CORS_ORIGINS` 填部署完成后前端的完整来源，例如 `https://trip-demo.pages.dev`，不要加路径或末尾斜杠。多个来源用英文逗号分隔。`PEXELS_API_KEY`、`BAIDU_MAP_AK` 等可选功能密钥按需设置。
+`CORS_ORIGINS` 填部署完成后前端的完整来源，例如 `https://trip-demo.pages.dev`，不要加路径或末尾斜杠。多个来源用英文逗号分隔。`PEXELS_API_KEY` 是可选的图片增强配置。
 
 Railway 若已有 `USE_RAIL_MCP=false`，必须在服务的 Variables 中改为 `true` 并重新部署；代码默认值不会覆盖显式的 `false`。12306 查询还要求输入出发城市，且可能受预售期和接口风控影响。项目会把查询失败或票价缺失明确显示出来，并说明未计入预算。
 

@@ -386,7 +386,7 @@ def test_compute_budget_with_12306_transport():
         meals=[Meal(name="楼外楼", location=loc, price=200)],
         hotel=Hotel(name="H", location=loc, price_per_night=900),
     )]
-    # 12306 单人往返 1200，2 人 => 城际 2400；没有地图路线，不虚估市内费用。
+    # 12306 单人往返 1200，2 人 => 城际 2400；没有市内路线，不虚估市内费用。
     b = PlannerAgent._compute_budget(
         req, days, days[0].hotel, rail=2400, rail_is_estimated=False
     )

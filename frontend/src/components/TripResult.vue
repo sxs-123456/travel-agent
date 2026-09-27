@@ -143,7 +143,7 @@ function recomputeBudget() {
                 </thead>
                 <tbody>
                   <tr
-                    v-for="t in rec.candidates.slice(0, 20)"
+                    v-for="t in rec.candidates"
                     :key="t.train_no + t.depart_time"
                     :style="t.train_no === rec.recommended?.train_no ? 'background:#fffbe6; font-weight:600' : ''"
                   >
@@ -214,7 +214,7 @@ function recomputeBudget() {
 </template>
 
 <style scoped>
-/* 一屏布局：左列（预算+车次）与右列（地图+行程）均限制在视口高度内，
+/* 一屏布局：左列（预算+车次）与右列（出行攻略+行程）均限制在视口高度内，
    内部各自滚动，避免长行程/多车次导致整页无限延伸。 */
 .tp-left-col,
 .tp-right-col {

@@ -24,14 +24,14 @@
 - **成本可观测**：按一次规划聚合模型调用次数、输入/输出 token；配置模型单价后返回费用估算。
 - **延迟优化**：门票、路线、餐厅和市内交通受控并发；酒店按真实候选确定性排序，减少一次 LLM 调用。
 - **Pydantic 数据模型**：`Location → Attraction/Meal/Hotel → DayPlan → TripPlan`。
-- **Vue3 前端**：一句话输入 → 独立结果页 → 高德 JS API 地图（无 key 降级坐标列表）→ 逐日时间轴 → 预算明细 → 车次选择面板。
+- **Vue3 前端**：一句话输入 → 独立结果页 → 公交/地铁攻略 → 逐日时间轴 → 预算明细 → 车次选择面板。
 - **首页视觉**：浅色纸张质感与项目原创手绘地标背景，配合自然语言行程输入框。
 - **分级故障处理**：核心规划依赖失败返回错误；图片、车次等辅助能力允许缺省，并通过说明标注。
 
 ## 技术栈
 
 后端：LangChain（ChatOpenAI 兼容）+ Pydantic + FastAPI + httpx
-前端：Vue3 + TypeScript + Vite + Ant Design Vue + 高德 JS API
+前端：Vue3 + TypeScript + Vite + Ant Design Vue
 
 ## 目录结构
 
@@ -121,7 +121,7 @@ python evals/run_evaluation.py --base-url http://127.0.0.1:8001
 
 以下指标来自结构化接口 `/api/trip-plan`，不包含新版首页额外的自然语言解析耗时和费用。
 
-在 DeepSeek、高德、Open-Meteo、百度地图、12306 与图片服务的真实调用链上运行 12 个固定场景：
+在 DeepSeek、高德、Open-Meteo、12306 与图片服务的真实调用链上运行 12 个固定场景：
 
 - API 成功率：`12/12 = 100%`
 - 质量通过率：`12/12 = 100%`
