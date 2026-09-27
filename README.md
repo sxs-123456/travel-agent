@@ -4,7 +4,7 @@
 
 ## 特性
 
-- **Stateful Agent Workflow**：`TravelState` 作为共享状态，显式执行 Discovery → Draft → Prepare → Enrich → Constraint → Replan/Complete。
+- **有状态智能体工作流**：`TravelState` 作为共享状态，显式执行数据发现 → 草稿生成 → 确定性准备 → 信息补全 → 约束检查 → 重新规划/完成。
 - **独立 Tool/Node**：景点、酒店、天气、草稿、路线、餐厅、12306、预算、约束和图片各自封装，并通过统一 `ToolResult` 返回状态、错误、重试次数、fallback、latency 和 source IDs。
 - **并行与韧性**：景点/酒店/天气并行发现，路线/餐厅/车次并行补全；按节点配置 Retry、Timeout、Fallback 和最大循环次数。
 - **自然语言入口**：用户直接描述出发地、目的地和日期；大模型只负责抽取请求字段，缺少目的地或日期时返回补充提示，校验通过后复用原有规划工作流。
@@ -49,7 +49,7 @@ trip-planner-agent/
 │   ├── evaluation.py       # 端到端评测指标汇总
 │   └── run.py              # uvicorn 启动入口
 ├── evals/                  # 固定评测数据集、运行器和真实结果
-├── docs/                   # 架构图与 Benchmark Report
+├── docs/                   # 架构说明与基准测试报告
 ├── frontend/               # Vue3 前端
 ├── tests/                  # pytest
 ├── Dockerfile / docker-compose.yml
@@ -123,9 +123,9 @@ python evals/run_evaluation.py --base-url http://127.0.0.1:8001
 结果写入 `evals/results/latest.json`。该命令会真实调用已配置的 LLM 和外部接口，可能产生模型费用；
 简历中的指标应引用实际生成的结果，不应使用测试桩数据。
 
-### Stateful Agent 真实评测结果
+### 有状态智能体真实评测结果
 
-2026-09-27 对 Railway 当前部署运行全部 12 个固定场景：Task Success、Grounded POI、Constraint Satisfaction 和 Tool Call Success 均为 `100%`，Duplicate 与 Hallucination 均为 `0%`，P50/P95 延迟为 `34.88s / 42.06s`，总 token 为 `54,224`。模型单价未配置，因此费用如实记为 unavailable。原始结果见 [`evals/results/latest.json`](evals/results/latest.json)，指标定义和复现命令见 [`docs/BENCHMARK.md`](docs/BENCHMARK.md)。
+2026-09-27 对 Railway 当前部署运行全部 12 个固定场景：任务成功率、真实 POI 覆盖率、约束满足率和工具调用成功率均为 `100%`，重复率与幻觉率均为 `0%`，P50/P95 延迟为 `34.88 秒 / 42.06 秒`，Token 总数为 `54,224`。模型单价未配置，因此费用如实记为“不可用”。原始结果见 [`evals/results/latest.json`](evals/results/latest.json)，指标定义和复现命令见[基准测试报告](docs/BENCHMARK.md)。
 
 ## 已知限制
 
@@ -135,7 +135,7 @@ python evals/run_evaluation.py --base-url http://127.0.0.1:8001
 - 车次：实际以 12306 下单为准。
 ## 工程化与简历展示
 
-架构说明与 Mermaid 工作流图见 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。CI 在每次 push/PR 执行 Python 编译、完整 pytest、Vue TypeScript 构建和 Docker 镜像构建；Railway 绑定 `main` 分支后负责通过已验证提交持续部署。
+架构说明与 Mermaid 工作流图见[有状态智能体架构](docs/ARCHITECTURE.md)。CI 在每次推送或合并请求时执行 Python 编译、完整 pytest、Vue TypeScript 构建和 Docker 镜像构建；Railway 绑定 `main` 分支后负责通过已验证提交持续部署。
 
 简历描述建议只引用 `evals/results/latest.json` 中真实生成的数字：
 
