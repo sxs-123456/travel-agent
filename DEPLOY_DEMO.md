@@ -1,5 +1,11 @@
 # 公网演示部署（静态前端 + 独立 API）
 
+当前项目已经使用 Railway 完成同源部署，正式演示地址为：
+
+[https://travel-agent-production-fbc9.up.railway.app/#/](https://travel-agent-production-fbc9.up.railway.app/#/)
+
+下文保留前后端分开部署的方法，供迁移到 Cloudflare Pages、Vercel 或其他平台时参考。
+
 本项目可以用 GitHub 作为代码仓库，把 Vue 前端发布到 Cloudflare Pages、Vercel、Netlify 等静态托管平台。FastAPI 需要一个支持 Python 长驻进程或 Docker 的后端托管服务；静态托管平台本身不会运行本项目的 Python Agent。
 
 部署拓扑：

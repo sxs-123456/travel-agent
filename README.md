@@ -4,7 +4,7 @@
 
 项目重点解决普通大模型旅行规划中的三个问题：事实容易编造、复杂任务缺少可控流程、结果质量无法量化。系统通过来源 ID 绑定、确定性约束检查、有限重新规划和固定评测集建立可信边界。
 
-- 在线演示：[travel-agent-production-fbc9.up.railway.app](https://travel-agent-production-fbc9.up.railway.app/)
+- 在线演示：[travel-agent-production-fbc9.up.railway.app](https://travel-agent-production-fbc9.up.railway.app/#/)
 - 架构说明：[有状态智能体架构](docs/ARCHITECTURE.md)
 - 评测依据：[智能体基准测试报告](docs/BENCHMARK.md)
 - 原始评测结果：[evals/results/latest.json](evals/results/latest.json)
