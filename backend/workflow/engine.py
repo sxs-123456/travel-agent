@@ -191,6 +191,7 @@ class TravelWorkflow:
             trace_id=state.trace_id,
             node=result.tool,
             status=result.status,
+            started_at=result.started_at,
             latency_ms=result.latency_ms,
             attempt=result.attempts,
             fallback_used=result.fallback_used,

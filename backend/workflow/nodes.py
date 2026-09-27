@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
+from datetime import datetime, timezone
 from time import perf_counter, sleep
 from typing import Any, Callable
 
@@ -71,6 +72,7 @@ class NodeRunner:
     """Apply timeout, retry, error classification and fallback uniformly."""
 
     def run(self, node: WorkflowNode, state: TravelState) -> ToolResult[Any]:
+        started_at = datetime.now(timezone.utc)
         started = perf_counter()
         last_error: BaseException | None = None
         attempts = 0
@@ -90,6 +92,7 @@ class NodeRunner:
                 value = future.result(timeout=node.timeout_seconds)
                 return ToolResult(
                     tool=node.name, status=ToolStatus.SUCCESS, value=value,
+                    started_at=started_at,
                     latency_ms=round((perf_counter() - started) * 1000, 2),
                     attempts=attempt, source_ids=node.source_ids(value),
                 )
@@ -111,6 +114,7 @@ class NodeRunner:
             value = node.fallback(state.model_copy(deep=True), last_error)
             return ToolResult(
                 tool=node.name, status=ToolStatus.FALLBACK, value=value,
+                started_at=started_at,
                 error=classified,
                 latency_ms=round((perf_counter() - started) * 1000, 2),
                 attempts=attempts, fallback_used=True, source_ids=node.source_ids(value),
@@ -119,6 +123,7 @@ class NodeRunner:
             status = ToolStatus.TIMEOUT if classified.kind.value == "timeout" else ToolStatus.FAILED
             return ToolResult(
                 tool=node.name, status=status, error=classified,
+                started_at=started_at,
                 latency_ms=round((perf_counter() - started) * 1000, 2),
                 attempts=attempts,
             )

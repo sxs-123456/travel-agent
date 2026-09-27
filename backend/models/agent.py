@@ -51,6 +51,7 @@ class ToolResult(BaseModel, Generic[T]):
 
     tool: str
     status: ToolStatus
+    started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     value: T | None = None
     error: ToolError | None = None
     latency_ms: float = Field(ge=0)
