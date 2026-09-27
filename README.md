@@ -125,7 +125,7 @@ python evals/run_evaluation.py --base-url http://127.0.0.1:8001
 
 ### Stateful Agent 真实评测结果
 
-指标必须通过当前版本真实运行生成，来源是 [`evals/results/latest.json`](evals/results/latest.json)。报告格式、指标定义与复现命令见 [`docs/BENCHMARK.md`](docs/BENCHMARK.md)。旧工作流的历史数字不作为当前架构成绩。
+2026-09-27 对 Railway 当前部署运行全部 12 个固定场景：Task Success、Grounded POI、Constraint Satisfaction 和 Tool Call Success 均为 `100%`，Duplicate 与 Hallucination 均为 `0%`，P50/P95 延迟为 `34.88s / 42.06s`，总 token 为 `54,224`。模型单价未配置，因此费用如实记为 unavailable。原始结果见 [`evals/results/latest.json`](evals/results/latest.json)，指标定义和复现命令见 [`docs/BENCHMARK.md`](docs/BENCHMARK.md)。
 
 ## 已知限制
 

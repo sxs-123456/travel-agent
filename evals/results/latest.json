@@ -3,10 +3,18 @@
     "total_cases": 12,
     "successful_cases": 12,
     "success_rate": 1.0,
+    "task_success_rate": 1.0,
+    "grounded_poi_rate": 1.0,
+    "constraint_satisfaction_rate": 1.0,
+    "tool_call_success_rate": 1.0,
+    "duplicate_rate": 0.0,
+    "hallucination_rate": 0.0,
+    "retry_rate": 0.0,
+    "fallback_rate": 0.0,
     "quality_pass_rate": 1.0,
     "latency_ms": {
-      "p50": 19246.61,
-      "p95": 22771.09
+      "p50": 34877.04,
+      "p95": 42063.95
     },
     "average_day_coverage": 1.0,
     "average_weather_coverage": 0.9167,
@@ -14,9 +22,9 @@
     "llm_usage": {
       "reported_cases": 12,
       "calls": 24,
-      "input_tokens": 27165,
-      "output_tokens": 4685,
-      "total_tokens": 31850,
+      "input_tokens": 19988,
+      "output_tokens": 34236,
+      "total_tokens": 54224,
       "estimated_cost_usd": null
     }
   },
@@ -24,8 +32,8 @@
     {
       "name": "杭州两日自然",
       "success": true,
-      "latency_ms": 16497.52,
-      "request_id": "786f76c5039e48f4937f324037e06c9a",
+      "latency_ms": 38931.41,
+      "request_id": "cde7e7fd300a4e6fae04394ee0c2a093",
       "quality": {
         "passed": true,
         "issues": [],
@@ -33,20 +41,151 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2098,
-        "output_tokens": 326,
-        "total_tokens": 2424,
+        "input_tokens": 1511,
+        "output_tokens": 3155,
+        "total_tokens": 4666,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 38164.33,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:05.927155Z",
+            "latency_ms": 14259.71,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:05.927342Z",
+            "latency_ms": 1935.33,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:05.927559Z",
+            "latency_ms": 890.71,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:20.187623Z",
+            "latency_ms": 4676.09,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:24.863987Z",
+            "latency_ms": 1.24,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:24.865523Z",
+            "latency_ms": 1924.42,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:24.865684Z",
+            "latency_ms": 893.15,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:24.865809Z",
+            "latency_ms": 18676.54,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:43.543073Z",
+            "latency_ms": 1.39,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:43.544540Z",
+            "latency_ms": 1.48,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cde7e7fd300a4e6fae04394ee0c2a093",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:43.546066Z",
+            "latency_ms": 544.84,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "北京三日人文",
       "success": true,
-      "latency_ms": 19246.61,
-      "request_id": "e16de0af192540e8bce79ab3e1da9faa",
+      "latency_ms": 25510.14,
+      "request_id": "31fed42df0c548649f301263c9ccf24f",
       "quality": {
         "passed": true,
         "issues": [],
@@ -54,20 +193,151 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2505,
-        "output_tokens": 417,
-        "total_tokens": 2922,
+        "input_tokens": 1902,
+        "output_tokens": 1000,
+        "total_tokens": 2902,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "31fed42df0c548649f301263c9ccf24f",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 25204.96,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:44.681452Z",
+            "latency_ms": 8041.88,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:44.681653Z",
+            "latency_ms": 1948.6,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:44.681786Z",
+            "latency_ms": 1504.8,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:52.724071Z",
+            "latency_ms": 1187.14,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:53.911477Z",
+            "latency_ms": 1.11,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:53.912879Z",
+            "latency_ms": 1382.63,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:53.913084Z",
+            "latency_ms": 1294.14,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T10:57:53.913434Z",
+            "latency_ms": 15917.78,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:09.831916Z",
+            "latency_ms": 1.66,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:09.833661Z",
+            "latency_ms": 1.75,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "31fed42df0c548649f301263c9ccf24f",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:09.835457Z",
+            "latency_ms": 50.47,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "上海同日城市游",
       "success": true,
-      "latency_ms": 14709.79,
-      "request_id": "727b4cddf53b43bf9c9117ce0dd550e8",
+      "latency_ms": 27865.06,
+      "request_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
       "quality": {
         "passed": true,
         "issues": [],
@@ -75,20 +345,151 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 1825,
-        "output_tokens": 234,
-        "total_tokens": 2059,
+        "input_tokens": 1271,
+        "output_tokens": 1235,
+        "total_tokens": 2506,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 27580.3,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:10.169077Z",
+            "latency_ms": 6106.16,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:10.169248Z",
+            "latency_ms": 2989.53,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:10.169427Z",
+            "latency_ms": 1758.45,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:16.275945Z",
+            "latency_ms": 3060.52,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:19.336665Z",
+            "latency_ms": 0.46,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:19.337486Z",
+            "latency_ms": 861.65,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:19.337630Z",
+            "latency_ms": 956.56,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:19.337760Z",
+            "latency_ms": 18405.74,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:37.744439Z",
+            "latency_ms": 1.54,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:37.746161Z",
+            "latency_ms": 1.1,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "cec1b1e27c0b4e9594c55fff98efcaeb",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:37.747440Z",
+            "latency_ms": 1.42,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "成都四日多人游",
       "success": true,
-      "latency_ms": 22771.09,
-      "request_id": "8c994bf395f349f190f59b56119d9c1c",
+      "latency_ms": 52398.68,
+      "request_id": "6c13fedf4190469b929ddc37a8fec4b7",
       "quality": {
         "passed": true,
         "issues": [],
@@ -96,20 +497,151 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2575,
-        "output_tokens": 514,
-        "total_tokens": 3089,
+        "input_tokens": 1985,
+        "output_tokens": 7435,
+        "total_tokens": 9420,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 52024.55,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:38.038972Z",
+            "latency_ms": 14254.5,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:38.039478Z",
+            "latency_ms": 2930.41,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:38.039644Z",
+            "latency_ms": 867.28,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T10:58:52.294145Z",
+            "latency_ms": 21543.79,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:13.838175Z",
+            "latency_ms": 1.59,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:13.840035Z",
+            "latency_ms": 1864.77,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:13.840201Z",
+            "latency_ms": 897.74,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:13.840318Z",
+            "latency_ms": 16142.52,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:29.983629Z",
+            "latency_ms": 1.48,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:29.985223Z",
+            "latency_ms": 3.59,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "6c13fedf4190469b929ddc37a8fec4b7",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:29.988898Z",
+            "latency_ms": 73.99,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "西安三日低预算",
       "success": true,
-      "latency_ms": 22909.85,
-      "request_id": "1fb3aa9293634254aaa77acbf6cc2925",
+      "latency_ms": 34877.04,
+      "request_id": "92500bb3e5e74593ad1270396c2d0352",
       "quality": {
         "passed": true,
         "issues": [],
@@ -117,20 +649,151 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2566,
-        "output_tokens": 416,
-        "total_tokens": 2982,
+        "input_tokens": 1936,
+        "output_tokens": 2697,
+        "total_tokens": 4633,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 34483.86,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:30.446794Z",
+            "latency_ms": 9810.37,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:30.446991Z",
+            "latency_ms": 1927.13,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:30.447259Z",
+            "latency_ms": 1251.23,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:40.257910Z",
+            "latency_ms": 7711.03,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:47.969186Z",
+            "latency_ms": 1.09,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:47.970623Z",
+            "latency_ms": 2783.54,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:47.970818Z",
+            "latency_ms": 868.2,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T10:59:47.970969Z",
+            "latency_ms": 16914.56,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:04.886260Z",
+            "latency_ms": 4.49,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:04.890899Z",
+            "latency_ms": 2.32,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "92500bb3e5e74593ad1270396c2d0352",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:04.893288Z",
+            "latency_ms": 36.91,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "三亚两日度假",
       "success": true,
-      "latency_ms": 16538.7,
-      "request_id": "6df690434e8946dc9acb53e6b655a6ad",
+      "latency_ms": 23974.34,
+      "request_id": "14baa788603d4e929916878d5dbba197",
       "quality": {
         "passed": true,
         "issues": [],
@@ -138,20 +801,151 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2104,
-        "output_tokens": 303,
-        "total_tokens": 2407,
+        "input_tokens": 1502,
+        "output_tokens": 2079,
+        "total_tokens": 3581,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "14baa788603d4e929916878d5dbba197",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 23698.57,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:05.301829Z",
+            "latency_ms": 6739.97,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:05.301982Z",
+            "latency_ms": 2477.38,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:05.302120Z",
+            "latency_ms": 807.73,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:12.042345Z",
+            "latency_ms": 6528.75,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:18.571332Z",
+            "latency_ms": 0.78,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:18.572361Z",
+            "latency_ms": 967.74,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:18.572514Z",
+            "latency_ms": 950.66,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:18.572780Z",
+            "latency_ms": 10336.4,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:28.909952Z",
+            "latency_ms": 1.16,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:28.911195Z",
+            "latency_ms": 1.4,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "14baa788603d4e929916878d5dbba197",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:28.912652Z",
+            "latency_ms": 87.02,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "南京两日亲子",
       "success": true,
-      "latency_ms": 18653.34,
-      "request_id": "d98b761e1c2e41fdb6d35fdc8a7cd6c6",
+      "latency_ms": 35027.36,
+      "request_id": "9b82810ad265408cb08a71e96c5b2296",
       "quality": {
         "passed": true,
         "issues": [],
@@ -159,20 +953,151 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2034,
-        "output_tokens": 367,
-        "total_tokens": 2401,
+        "input_tokens": 1432,
+        "output_tokens": 2790,
+        "total_tokens": 4222,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 34601.1,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:29.284327Z",
+            "latency_ms": 9201.92,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:29.284559Z",
+            "latency_ms": 2584.7,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:29.284817Z",
+            "latency_ms": 799.37,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:38.486960Z",
+            "latency_ms": 8703.8,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:47.190951Z",
+            "latency_ms": 0.72,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:47.192171Z",
+            "latency_ms": 1625.96,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:47.192351Z",
+            "latency_ms": 833.57,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T11:00:47.192498Z",
+            "latency_ms": 16569.47,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:03.762559Z",
+            "latency_ms": 1.21,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:03.763844Z",
+            "latency_ms": 1.26,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "9b82810ad265408cb08a71e96c5b2296",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:03.765214Z",
+            "latency_ms": 119.28,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "苏州三日园林",
       "success": true,
-      "latency_ms": 19338.07,
-      "request_id": "f383f7a82b554a2fa4092237911cbb01",
+      "latency_ms": 29572.65,
+      "request_id": "65a15223401147048fcf00ace6572a34",
       "quality": {
         "passed": true,
         "issues": [],
@@ -180,20 +1105,160 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2383,
-        "output_tokens": 432,
-        "total_tokens": 2815,
+        "input_tokens": 1883,
+        "output_tokens": 1495,
+        "total_tokens": 3378,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "65a15223401147048fcf00ace6572a34",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 29178.64,
+        "constraint_report": {
+          "passed": true,
+          "violations": [
+            {
+              "code": "hotel_budget_mismatch",
+              "message": "酒店档次与用户预算等级不一致",
+              "severity": "warning",
+              "deterministic": true,
+              "retryable": false,
+              "path": null
+            }
+          ],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:04.333537Z",
+            "latency_ms": 7023.46,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:04.334868Z",
+            "latency_ms": 1991.47,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:04.335037Z",
+            "latency_ms": 859.69,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:11.357757Z",
+            "latency_ms": 4010.67,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:15.368659Z",
+            "latency_ms": 0.92,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:15.369860Z",
+            "latency_ms": 1212.83,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:15.370106Z",
+            "latency_ms": 12.8,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:15.370388Z",
+            "latency_ms": 18132.07,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:33.503149Z",
+            "latency_ms": 1.54,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:33.504839Z",
+            "latency_ms": 1.27,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "65a15223401147048fcf00ace6572a34",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:33.506214Z",
+            "latency_ms": 4.88,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "厦门两日摄影",
       "success": true,
-      "latency_ms": 15030.5,
-      "request_id": "6dc1da0dae1444a9ab4ede0f9cfa84f4",
+      "latency_ms": 29115.61,
+      "request_id": "b2a3f71025bc4024998807ff92b9487d",
       "quality": {
         "passed": true,
         "issues": [],
@@ -201,20 +1266,151 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 1836,
-        "output_tokens": 330,
-        "total_tokens": 2166,
+        "input_tokens": 1233,
+        "output_tokens": 1891,
+        "total_tokens": 3124,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 28733.43,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:33.902528Z",
+            "latency_ms": 9617.62,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:33.902628Z",
+            "latency_ms": 1318.02,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:33.902849Z",
+            "latency_ms": 794.22,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:43.520707Z",
+            "latency_ms": 3439.37,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:46.960303Z",
+            "latency_ms": 0.62,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:46.961185Z",
+            "latency_ms": 1800.93,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:46.961322Z",
+            "latency_ms": 815.08,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T11:01:46.961437Z",
+            "latency_ms": 15056.0,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:02.018110Z",
+            "latency_ms": 0.91,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:02.019093Z",
+            "latency_ms": 1.05,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "b2a3f71025bc4024998807ff92b9487d",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:02.020184Z",
+            "latency_ms": 615.33,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "重庆三日城市游",
       "success": true,
-      "latency_ms": 19607.42,
-      "request_id": "4cd5eec2ec21409b98cd9c3c4b775404",
+      "latency_ms": 38196.99,
+      "request_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
       "quality": {
         "passed": true,
         "issues": [],
@@ -222,20 +1418,160 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2537,
-        "output_tokens": 463,
-        "total_tokens": 3000,
+        "input_tokens": 1909,
+        "output_tokens": 3505,
+        "total_tokens": 5414,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 37893.78,
+        "constraint_report": {
+          "passed": true,
+          "violations": [
+            {
+              "code": "hotel_budget_mismatch",
+              "message": "酒店档次与用户预算等级不一致",
+              "severity": "warning",
+              "deterministic": true,
+              "retryable": false,
+              "path": null
+            }
+          ],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:03.014177Z",
+            "latency_ms": 11613.84,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:03.014452Z",
+            "latency_ms": 1988.2,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:03.014703Z",
+            "latency_ms": 1602.91,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:14.628700Z",
+            "latency_ms": 9034.57,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:23.663518Z",
+            "latency_ms": 0.79,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:23.664634Z",
+            "latency_ms": 1223.32,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:23.664773Z",
+            "latency_ms": 895.03,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:23.664896Z",
+            "latency_ms": 17188.2,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:40.853742Z",
+            "latency_ms": 1.26,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:40.855115Z",
+            "latency_ms": 1.1,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "a0c203eb6dc94ef79d9831d80e65f5f1",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:40.856274Z",
+            "latency_ms": 51.04,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "青岛两日家庭游",
       "success": true,
-      "latency_ms": 18861.54,
-      "request_id": "4a768786b25c462f8519f09fc1295e0e",
+      "latency_ms": 33465.4,
+      "request_id": "e6cacd4b683e41e496e93dbcedfd1d70",
       "quality": {
         "passed": true,
         "issues": [],
@@ -243,20 +1579,160 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2055,
-        "output_tokens": 332,
-        "total_tokens": 2387,
+        "input_tokens": 1413,
+        "output_tokens": 3081,
+        "total_tokens": 4494,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 33035.77,
+        "constraint_report": {
+          "passed": true,
+          "violations": [
+            {
+              "code": "hotel_budget_mismatch",
+              "message": "酒店档次与用户预算等级不一致",
+              "severity": "warning",
+              "deterministic": true,
+              "retryable": false,
+              "path": null
+            }
+          ],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:41.186572Z",
+            "latency_ms": 5713.49,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:41.186835Z",
+            "latency_ms": 2011.66,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:41.187104Z",
+            "latency_ms": 809.73,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:46.900534Z",
+            "latency_ms": 12176.72,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:59.077508Z",
+            "latency_ms": 0.79,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:59.078593Z",
+            "latency_ms": 819.23,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:59.078797Z",
+            "latency_ms": 1118.78,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T11:02:59.078995Z",
+            "latency_ms": 15089.35,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:14.169107Z",
+            "latency_ms": 1.13,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:14.170345Z",
+            "latency_ms": 1.26,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "e6cacd4b683e41e496e93dbcedfd1d70",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:14.171680Z",
+            "latency_ms": 50.06,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     },
     {
       "name": "洛阳四日文化游",
       "success": true,
-      "latency_ms": 20338.77,
-      "request_id": "dda05c4766e74ec3969d85d5becbb677",
+      "latency_ms": 42063.95,
+      "request_id": "05bf6d58f29c4808b2c143f26666518b",
       "quality": {
         "passed": true,
         "issues": [],
@@ -264,13 +1740,144 @@
         "day_coverage": 1.0
       },
       "llm_usage": {
-        "model": "deepseek-chat",
+        "model": "deepseek-flash",
         "calls": 2,
-        "input_tokens": 2647,
-        "output_tokens": 551,
-        "total_tokens": 3198,
+        "input_tokens": 2011,
+        "output_tokens": 3873,
+        "total_tokens": 5884,
         "estimated_cost_usd": null,
         "usage_available": true
+      },
+      "workflow": {
+        "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+        "status": "complete",
+        "loop_count": 1,
+        "replan_count": 0,
+        "tool_calls": 11,
+        "tool_successes": 11,
+        "retry_count": 0,
+        "fallback_count": 0,
+        "total_latency_ms": 41656.64,
+        "constraint_report": {
+          "passed": true,
+          "violations": [],
+          "grounded_poi_rate": 1.0,
+          "constraint_satisfaction_rate": 1.0,
+          "duplicate_rate": 0.0,
+          "hallucination_rate": 0.0
+        },
+        "traces": [
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "attractions",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:14.698528Z",
+            "latency_ms": 11172.49,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "weather",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:14.698681Z",
+            "latency_ms": 2232.77,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "hotels",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:14.698846Z",
+            "latency_ms": 1857.44,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "draft",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:25.871978Z",
+            "latency_ms": 10013.21,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "prepare",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:35.885351Z",
+            "latency_ms": 1.46,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "routes",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:35.887156Z",
+            "latency_ms": 1883.39,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "restaurants",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:35.887404Z",
+            "latency_ms": 873.11,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "rail",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:35.887622Z",
+            "latency_ms": 19871.06,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "budget",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:55.759445Z",
+            "latency_ms": 1.38,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "constraints",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:55.760952Z",
+            "latency_ms": 1.94,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          },
+          {
+            "trace_id": "05bf6d58f29c4808b2c143f26666518b",
+            "node": "images",
+            "status": "success",
+            "started_at": "2026-09-27T11:03:55.762995Z",
+            "latency_ms": 591.55,
+            "attempt": 1,
+            "fallback_used": false,
+            "error_code": null
+          }
+        ]
       }
     }
   ]
