@@ -207,6 +207,8 @@ class ConstraintChecker:
             violations.append(ConstraintViolation(
                 code="hotel_budget_mismatch",
                 message="酒店档次与用户预算等级不一致",
+                severity=ConstraintSeverity.WARNING,
+                retryable=False,
             ))
 
         if self.semantic_checker is not None:

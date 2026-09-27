@@ -289,6 +289,31 @@ def test_prepare_replaces_remote_poi_with_grounded_nearby_candidate():
     assert candidate.days[0].route_distance_km < 30
 
 
+def test_prepare_reserves_grounded_candidates_for_each_day():
+    from backend.agents.planner import PlannerAgent
+    from backend.models.trip import Hotel
+
+    hotel = Hotel(name="中心酒店", location=Location(longitude=120, latitude=30))
+    attrs = [
+        Attraction(
+            source_id=f"poi-{i}", name=f"地点{i}",
+            location=Location(longitude=120 + i * 0.01, latitude=30),
+        ) for i in range(4)
+    ]
+    candidate = TripPlan(
+        city="杭州", start_date="2026-10-01", end_date="2026-10-04",
+        days=[DayPlan(
+            day=i + 1, date=f"2026-10-0{i + 1}",
+            attractions=attrs[:3], hotel=hotel,
+        ) for i in range(4)],
+    )
+    req = request().model_copy(update={"end_date": "2026-10-04"})
+    PlannerAgent().prepare_plan(candidate, req, attrs, [hotel])
+    assert all(day.attractions for day in candidate.days)
+    ids = [item.source_id for day in candidate.days for item in day.attractions]
+    assert len(ids) == len(set(ids)) == 4
+
+
 def test_transit_routes_are_queried_in_parallel(monkeypatch):
     import time
     import backend.agents.planner as planner_module

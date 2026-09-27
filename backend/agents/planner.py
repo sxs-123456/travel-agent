@@ -539,14 +539,26 @@ class PlannerAgent:
     ) -> None:
         """Keep each day geographically coherent using verified candidates only."""
         used_ids: set[str] = set()
+        local_per_day = 3
+        if hotel and plan.days:
+            local_count = sum(
+                bool(item.source_id)
+                and cls._haversine_km(hotel.location, item.location) <= 30
+                for item in candidates
+            )
+            # Reserve verified nearby candidates for later days instead of letting
+            # an early 3-POI day consume the entire source pool.
+            local_per_day = max(1, min(3, local_count // len(plan.days)))
         for day in plan.days:
             original = list(day.attractions)
-            if not original:
+            if not original and not hotel:
                 continue
             anchor = hotel.location if hotel else original[0].location
-            target_count = min(3, max(1, len(original)))
+            target_count = min(local_per_day, max(1, len(original)))
             kept: list[Attraction] = []
             for item in original:
+                if len(kept) >= target_count:
+                    break
                 if not item.source_id or item.source_id in used_ids:
                     continue
                 if cls._haversine_km(anchor, item.location) > 30:
