@@ -9,6 +9,7 @@ interface Submission {
 
 const props = defineProps<{
   loading?: boolean;
+  loadingText?: string;
   error?: string;
   missingFields?: string[];
 }>();
@@ -78,7 +79,7 @@ function onKeydown(event: KeyboardEvent) {
       </p>
       <button class="prompt-submit" type="submit" :disabled="!canSubmit">
         <span v-if="loading" class="prompt-spinner" aria-hidden="true"></span>
-        {{ loading ? "\u6b63\u5728\u89c4\u5212\u2026" : "\u751f\u6210\u6211\u7684\u884c\u7a0b" }}
+        {{ loading ? (loadingText || "\u6b63\u5728\u89c4\u5212\u2026") : "\u751f\u6210\u6211\u7684\u884c\u7a0b" }}
         <span v-if="!loading" aria-hidden="true">&nearr;</span>
       </button>
     </div>

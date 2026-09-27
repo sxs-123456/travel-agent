@@ -137,8 +137,10 @@ def test_recommendation_uses_selected_train_for_price_and_reason(monkeypatch):
         return {"train_no": code, "seats": [
             {"type": "二等座", "remain": "有", "price": price}], "min_price": price}
     candidates = [train("G1", 800), train("G2", 500)]
+    price_limits = []
     class Rail:
-        def search_with_prices(self, *args):
+        def search_with_prices(self, *args, **kwargs):
+            price_limits.append(kwargs.get("max_trains"))
             return candidates
         def recommend(self, *args, **kwargs):
             return candidates[1], "推荐 G2"
@@ -149,6 +151,7 @@ def test_recommendation_uses_selected_train_for_price_and_reason(monkeypatch):
     assert len(results) == 2
     assert all(r.recommended.train_no == "G2" and r.price_per_person == 500
                and r.candidates[0].train_no == "G2" and "G2" in r.reason for r in results)
+    assert price_limits == [4, 4]
 
 
 def test_quality_detects_duplicates_empty_days_and_request_mismatch():
@@ -224,7 +227,6 @@ def test_planner_retries_invalid_draft_once(monkeypatch):
 
 
 def test_route_optimizer_orders_nearest_first_and_records_distance(monkeypatch):
-    import backend.agents.planner as planner_module
     from backend.agents.planner import PlannerAgent
     from backend.models.trip import Hotel
 
@@ -241,41 +243,48 @@ def test_route_optimizer_orders_nearest_first_and_records_distance(monkeypatch):
         )],
     )
     PlannerAgent._optimize_routes(candidate)
-    monkeypatch.setattr(planner_module.settings, "use_amap_driving_route", False)
-    PlannerAgent._enrich_driving_routes(candidate)
     day = candidate.days[0]
     assert [a.name for a in day.attractions] == ["近", "远"]
     assert day.route_distance_km == pytest.approx(22.2, abs=0.2)
-    assert "实际路程以地图导航为准" in day.notes
+    assert "具体路线见公交/地铁出行攻略" in day.notes
 
 
-def test_driving_route_metrics_replace_straight_line(monkeypatch):
+def test_transit_routes_are_queried_in_parallel(monkeypatch):
+    import time
     import backend.agents.planner as planner_module
     from backend.agents.planner import PlannerAgent
     from backend.models.trip import Hotel
 
+    hotel = Hotel(name="酒店", location=Location(longitude=0, latitude=0))
     candidate = TripPlan(
-        city="测试", start_date="2026-10-01", end_date="2026-10-01",
-        days=[DayPlan(day=1, date="2026-10-01", attractions=[
-            Attraction(name="甲", location=Location(longitude=1, latitude=1)),
-            Attraction(name="乙", location=Location(longitude=2, latitude=2)),
-        ], hotel=Hotel(name="酒店", location=Location(longitude=0, latitude=0)))],
+        city="测试", start_date="2026-10-01", end_date="2026-10-04",
+        days=[
+            DayPlan(
+                day=day,
+                date=f"2026-10-0{day}",
+                attractions=[
+                    Attraction(name=f"{day}-甲", location=Location(longitude=day, latitude=1)),
+                    Attraction(name=f"{day}-乙", location=Location(longitude=day, latitude=2)),
+                ],
+                hotel=hotel,
+            )
+            for day in range(1, 5)
+        ],
     )
-    monkeypatch.setattr(planner_module.settings, "use_amap_driving_route", True)
-    monkeypatch.setattr(
-        planner_module,
-        "driving_route",
-        lambda origin, destination: {
-            "distance_km": 5.0, "duration_min": 10.0, "source": "amap_driving"
-        },
-    )
-    PlannerAgent._optimize_routes(candidate)
-    PlannerAgent._enrich_driving_routes(candidate)
-    day = candidate.days[0]
-    assert day.route_distance_source == "amap_driving"
-    assert day.route_distance_km == 15.0
-    assert day.route_duration_min == 30.0
-    assert "高德驾车路线" in day.notes
+
+    def slow_transit(*_args):
+        time.sleep(0.08)
+        return {"lines": ["地铁1号线"], "duration_min": 20, "walking_km": 0.5, "cost": 3}
+
+    monkeypatch.setattr(planner_module, "transit_route", slow_transit)
+    started = time.perf_counter()
+    PlannerAgent._enrich_transit_advice(candidate)
+    elapsed = time.perf_counter() - started
+
+    # 4 天、每一天 3 段共 12 次；串行约 0.96 秒，并发后应显著低于该值。
+    assert elapsed < 0.5
+    assert all(len(day.transit_advice) == 3 for day in candidate.days)
+    assert all(day.transit_cost == 9 for day in candidate.days)
 
 
 def test_llm_usage_tracker_handles_openai_usage():

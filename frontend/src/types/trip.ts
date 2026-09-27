@@ -54,8 +54,6 @@ export interface DayPlan {
   meals: Meal[];
   hotel?: Hotel | null;
   route_distance_km?: number | null;
-  route_duration_min?: number | null;
-  route_distance_source?: "amap_driving" | "straight_line";
   transit_advice?: string[];
   notes: string;
 }

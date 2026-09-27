@@ -29,6 +29,7 @@ const result = ref<NaturalTripResponse | null>(
 const lastQuery = ref(history.value[0]?.query ?? "");
 const route = ref(window.location.hash || "#/");
 const loading = ref(false);
+const loadingStage = ref("");
 const error = ref("");
 const missingFields = ref<string[]>([]);
 
@@ -51,10 +52,15 @@ function clearPromptState() {
 async function generate(submission: FormSubmission) {
   if (loading.value) return;
   loading.value = true;
+  loadingStage.value = "正在提交旅行需求";
   clearPromptState();
   lastQuery.value = submission.query;
   try {
-    const response = await createTripPlanFromText(submission.query, submission);
+    const response = await createTripPlanFromText(
+      submission.query,
+      submission,
+      (stage) => { loadingStage.value = stage; }
+    );
     result.value = response;
     const saved = saveTrip(response, submission.query);
     currentId.value = saved.id;
@@ -70,6 +76,7 @@ async function generate(submission: FormSubmission) {
     missingFields.value = cause instanceof TripRequestError ? cause.missingFields : [];
   } finally {
     loading.value = false;
+    loadingStage.value = "";
   }
 }
 
@@ -123,6 +130,7 @@ function printPlan() {
           </p>
           <PlanForm
             :loading="loading"
+            :loading-text="loadingStage"
             :error="error"
             :missing-fields="missingFields"
             @submit="generate"

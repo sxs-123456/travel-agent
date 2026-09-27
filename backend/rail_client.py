@@ -24,7 +24,7 @@ class RailClient:
 
     def search_with_prices(
         self, from_city: str, to_city: str, date: str,
-        preferred_seat: str | None = None, max_trains: int = 10,
+        preferred_seat: str | None = None, max_trains: int = 4,
     ) -> list[dict]:
         """查询车次列表并为每班车附上真实票价（供前端车次选择展示）。"""
         if not settings.use_rail_mcp:

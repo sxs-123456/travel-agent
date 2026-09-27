@@ -145,12 +145,6 @@ class DayPlan(BaseModel):
     route_distance_km: Optional[float] = Field(
         None, ge=0, description="按实际游览顺序计算的路线距离（公里）"
     )
-    route_duration_min: Optional[float] = Field(
-        None, ge=0, description="高德驾车路线预计时长（分钟）"
-    )
-    route_distance_source: str = Field(
-        "straight_line", description="距离来源：amap_driving 或 straight_line"
-    )
     transit_advice: List[str] = Field(
         default_factory=list, description="当日各段地铁、公交或步行出行建议"
     )

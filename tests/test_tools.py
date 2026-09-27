@@ -6,7 +6,6 @@ from backend.tools.amap import (
     _parse_weather,
     text_search,
     weather,
-    driving_route,
     transit_route,
 )
 from backend.tools.images import search_image
@@ -33,28 +32,6 @@ def test_parse_pois_real():
     assert out[0]["source_id"] == "B000A001"
     assert out[0]["location"].longitude == 116.39
     assert out[0]["ticket_price"] == 50
-
-
-def test_amap_driving_route_parses_distance_and_duration(monkeypatch):
-    class FakeResp:
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {
-                "status": "1",
-                "route": {"paths": [{"distance": "12500", "duration": "1800"}]},
-            }
-
-    monkeypatch.setattr(settings, "amap_api_key", "test-key")
-    monkeypatch.setattr(httpx, "get", lambda url, **kwargs: FakeResp())
-    result = driving_route(
-        Location(longitude=116.3, latitude=39.9),
-        Location(longitude=116.4, latitude=40.0),
-    )
-    assert result == {
-        "distance_km": 12.5, "duration_min": 30.0, "source": "amap_driving"
-    }
 
 
 def test_amap_transit_route_parses_lines_and_walking(monkeypatch):

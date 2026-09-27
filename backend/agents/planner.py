@@ -24,7 +24,7 @@ from backend.models.trip import (
 from backend.agents.base import get_llm, structured_chain
 from backend.config import settings
 from backend.rail_client import rail_client
-from backend.tools.amap import driving_route, transit_route
+from backend.tools.amap import transit_route
 from backend.tools.restaurants import recommend_restaurants
 logger = logging.getLogger("trip-planner")
 
@@ -182,121 +182,119 @@ class PlannerAgent:
                 total += cls._haversine_km(current, day.hotel.location)
             day.attractions = ordered
             day.route_distance_km = round(total, 1)
-
-    @staticmethod
-    def _enrich_driving_routes(plan: TripPlan) -> None:
-        """用高德驾车路线替换直线距离；接口失败时保留可解释的直线距离。"""
-        for day in plan.days:
-            locations = [a.location for a in day.attractions]
-            if day.hotel and locations:
-                locations = [day.hotel.location, *locations, day.hotel.location]
-
-            if settings.use_amap_driving_route and len(locations) >= 2:
-                try:
-                    pairs = list(zip(locations, locations[1:]))
-                    with futures.ThreadPoolExecutor(max_workers=min(4, len(pairs))) as executor:
-                        legs = list(executor.map(lambda pair: driving_route(*pair), pairs))
-                    day.route_distance_km = round(
-                        sum(float(leg["distance_km"]) for leg in legs), 1
-                    )
-                    day.route_duration_min = round(
-                        sum(float(leg["duration_min"]) for leg in legs), 1
-                    )
-                    day.route_distance_source = "amap_driving"
-                except Exception as exc:  # noqa: BLE001  单日路线失败可降级
-                    logger.warning("Day%d 高德驾车路线失败，回退直线距离：%s", day.day, exc)
-
-            if day.route_distance_source == "amap_driving":
-                route_note = (
-                    f"景点已按地理距离排序；高德驾车路线约 "
-                    f"{day.route_distance_km:.1f} 公里 / {day.route_duration_min:.0f} 分钟"
-                )
-            else:
-                route_note = (
-                    f"景点已按地理距离排序，直线距离约 {day.route_distance_km or 0:.1f} 公里"
-                    "（实际路程以地图导航为准）"
-                )
+            route_note = (
+                f"景点已按地理距离排序，直线距离约 {day.route_distance_km:.1f} 公里"
+                "（当天具体路线见公交/地铁出行攻略）"
+            )
             day.notes = (day.notes + "；" if day.notes else "") + route_note
 
     @classmethod
+    def _transit_leg_advice(
+        cls, city: str, day_number: int, from_name: str, origin,
+        to_name: str, destination,
+    ) -> tuple[str, float, bool]:
+        """查询一段公共交通；失败时返回基于距离的明确兜底建议。"""
+        distance = cls._haversine_km(origin, destination)
+        try:
+            route = transit_route(origin, destination, city)
+            lines = [str(item) for item in route.get("lines", [])]
+            duration = int(float(route.get("duration_min", 0)))
+            walking = float(route.get("walking_km", 0))
+            raw_cost = route.get("cost")
+            if raw_cost is not None and float(raw_cost) > 0:
+                fare = float(raw_cost)
+                fare_is_estimated = False
+            elif lines:
+                fare = max(2.0, 2.0 + max(0, len(lines) - 1) * 2.0)
+                fare_is_estimated = True
+            elif distance > 1.5:
+                fare = 4.0
+                fare_is_estimated = True
+            else:
+                fare = 0.0
+                fare_is_estimated = False
+            if lines:
+                method = " -> ".join(lines[:3])
+                detail = f"{from_name} -> {to_name}：乘坐 {method}，约 {duration} 分钟"
+                if walking > 0:
+                    detail += f"，其中步行约 {walking:.1f} 公里"
+                detail += f"，票价约 ¥{fare:.0f}/人"
+            else:
+                detail = (
+                    f"{from_name} -> {to_name}：公交出行约 {duration} 分钟，"
+                    f"步行约 {walking:.1f} 公里，具体班次以实时导航为准"
+                )
+                if fare > 0:
+                    detail += f"，票价参考 ¥{fare:.0f}/人"
+        except Exception as exc:  # noqa: BLE001 - 单段失败不影响整份攻略
+            logger.info("Day%d transit route fallback: %s", day_number, exc)
+            if distance <= 1.5:
+                fare = 0.0
+                fare_is_estimated = False
+                detail = f"{from_name} -> {to_name}：相距约 {distance:.1f} 公里，建议步行或骑行"
+            else:
+                fare = 4.0
+                fare_is_estimated = True
+                detail = (
+                    f"{from_name} -> {to_name}：相距约 {distance:.1f} 公里，"
+                    "建议优先乘坐地铁或公交，票价参考 ¥4/人，具体线路以实时导航为准"
+                )
+        return detail, fare, fare_is_estimated
+
+    @classmethod
     def _enrich_transit_advice(cls, plan: TripPlan) -> None:
-        """Add practical point-to-point public transit guidance for every day."""
-        for day in plan.days:
+        """并发查询全行程的公交/地铁路段，避免按天串行等待网络请求。"""
+        jobs: list[tuple[int, int, int, str, object, str, object]] = []
+        for day_index, day in enumerate(plan.days):
             stops: list[tuple[str, object]] = [
                 (attraction.name, attraction.location) for attraction in day.attractions
             ]
             if day.hotel and stops:
-                stops = [(day.hotel.name, day.hotel.location), *stops, (day.hotel.name, day.hotel.location)]
+                stops = [
+                    (day.hotel.name, day.hotel.location),
+                    *stops,
+                    (day.hotel.name, day.hotel.location),
+                ]
             if len(stops) < 2:
                 day.transit_advice = [
-                    "\u5f53\u5929\u884c\u7a0b\u8f83\u5c11\uff0c\u5efa\u8bae\u7ed3\u5408\u5b9e\u65f6\u5bfc\u822a\u9009\u62e9\u6b65\u884c\u3001\u5730\u94c1\u6216\u516c\u4ea4\u3002"
+                    "当天行程较少，建议结合实时导航选择步行、地铁或公交。"
                 ]
                 day.transit_cost = 0
                 day.transit_cost_is_estimated = False
                 continue
 
-            advice: list[str] = []
-            total_cost = 0.0
-            has_estimated_cost = False
-            for (from_name, origin), (to_name, destination) in zip(stops, stops[1:]):
-                distance = cls._haversine_km(origin, destination)
-                try:
-                    route = transit_route(origin, destination, plan.city)
-                    lines = [str(item) for item in route.get("lines", [])]
-                    duration = int(float(route.get("duration_min", 0)))
-                    walking = float(route.get("walking_km", 0))
-                    raw_cost = route.get("cost")
-                    if raw_cost is not None and float(raw_cost) > 0:
-                        fare = float(raw_cost)
-                        fare_is_estimated = False
-                    elif lines:
-                        fare = max(2.0, 2.0 + max(0, len(lines) - 1) * 2.0)
-                        fare_is_estimated = True
-                    elif distance > 1.5:
-                        fare = 4.0
-                        fare_is_estimated = True
-                    else:
-                        fare = 0.0
-                        fare_is_estimated = False
-                    if lines:
-                        method = " -> ".join(lines[:3])
-                        detail = (
-                            f"{from_name} -> {to_name}\uff1a\u4e58\u5750 {method}\uff0c"
-                            f"\u7ea6 {duration} \u5206\u949f"
-                        )
-                        if walking > 0:
-                            detail += f"\uff0c\u5176\u4e2d\u6b65\u884c\u7ea6 {walking:.1f} \u516c\u91cc"
-                        detail += f"\uff0c\u7968\u4ef7\u7ea6 \u00a5{fare:.0f}/\u4eba"
-                    else:
-                        detail = (
-                            f"{from_name} -> {to_name}\uff1a\u516c\u4ea4\u51fa\u884c\u7ea6 {duration} \u5206\u949f\uff0c"
-                            f"\u6b65\u884c\u7ea6 {walking:.1f} \u516c\u91cc\uff0c\u5177\u4f53\u73ed\u6b21\u4ee5\u5b9e\u65f6\u5bfc\u822a\u4e3a\u51c6"
-                        )
-                        if fare > 0:
-                            detail += f"\uff0c\u7968\u4ef7\u53c2\u8003 \u00a5{fare:.0f}/\u4eba"
-                except Exception as exc:  # noqa: BLE001 - each leg has a useful fallback
-                    logger.info("Day%d transit route fallback: %s", day.day, exc)
-                    if distance <= 1.5:
-                        fare = 0.0
-                        fare_is_estimated = False
-                        detail = (
-                            f"{from_name} -> {to_name}\uff1a\u76f8\u8ddd\u7ea6 {distance:.1f} \u516c\u91cc\uff0c"
-                            "\u5efa\u8bae\u6b65\u884c\u6216\u9a91\u884c"
-                        )
-                    else:
-                        fare = 4.0
-                        fare_is_estimated = True
-                        detail = (
-                            f"{from_name} -> {to_name}\uff1a\u76f8\u8ddd\u7ea6 {distance:.1f} \u516c\u91cc\uff0c"
-                            "\u5efa\u8bae\u4f18\u5148\u4e58\u5750\u5730\u94c1\u6216\u516c\u4ea4\uff0c\u7968\u4ef7\u53c2\u8003 \u00a54/\u4eba\uff0c"
-                            "\u5177\u4f53\u7ebf\u8def\u4ee5\u5b9e\u65f6\u5bfc\u822a\u4e3a\u51c6"
-                        )
-                advice.append(detail)
-                total_cost += fare
-                has_estimated_cost = has_estimated_cost or fare_is_estimated
-            day.transit_advice = advice
-            day.transit_cost = round(total_cost)
-            day.transit_cost_is_estimated = has_estimated_cost
+            day.transit_advice = []
+            day.transit_cost = 0
+            day.transit_cost_is_estimated = False
+            for leg_index, ((from_name, origin), (to_name, destination)) in enumerate(
+                zip(stops, stops[1:])
+            ):
+                jobs.append(
+                    (day_index, leg_index, day.day, from_name, origin, to_name, destination)
+                )
+
+        if not jobs:
+            return
+
+        def fetch(job):
+            day_index, leg_index, day_number, from_name, origin, to_name, destination = job
+            result = cls._transit_leg_advice(
+                plan.city, day_number, from_name, origin, to_name, destination
+            )
+            return day_index, leg_index, result
+
+        with futures.ThreadPoolExecutor(max_workers=min(8, len(jobs))) as executor:
+            results = list(executor.map(fetch, jobs))
+
+        grouped: dict[int, list[tuple[int, str, float, bool]]] = {}
+        for day_index, leg_index, (detail, fare, estimated) in results:
+            grouped.setdefault(day_index, []).append((leg_index, detail, fare, estimated))
+        for day_index, items in grouped.items():
+            items.sort(key=lambda item: item[0])
+            day = plan.days[day_index]
+            day.transit_advice = [item[1] for item in items]
+            day.transit_cost = round(sum(item[2] for item in items))
+            day.transit_cost_is_estimated = any(item[3] for item in items)
 
     @staticmethod
     def _dedupe_attractions_across_days(plan: TripPlan) -> None:
@@ -511,9 +509,8 @@ class PlannerAgent:
         # 统一替换所有过夜日的 hotel，并覆盖 LLM 可能臆造/改写的名称与价格。
         hotel = self._apply_single_hotel(plan, hotels)
 
-        # 最近邻排序后用高德驾车路线补充真实道路距离与时长；接口失败自动回退直线距离。
+        # 最近邻排序后并发查询每天各段公交/地铁路线。
         self._optimize_routes(plan)
-        self._enrich_driving_routes(plan)
         self._enrich_transit_advice(plan)
 
         # 用每日中段景点附近的高德真实餐厅覆盖模型餐饮建议；查询失败时保留原建议。
@@ -567,17 +564,17 @@ class PlannerAgent:
         返回两条 TrainRecommendation（[去程, 返程]）；任一方查询失败会整体抛错，
         由上层回退为估算（保证不出现「半程有价、半程无价」的割裂预算）。
 
-        候选展示策略：只展示前 10 班车次（避免列表过长、降低 12306 票价 API 调用）；
-        推荐车次总是置顶：若 best 已在前 10 则直接用，若不在则单独给它补一次票价后
+        候选展示策略：只展示前 4 班车次（避免列表过长、降低 12306 票价 API 调用）；
+        推荐车次总是置顶：若 best 已在前 4 则直接用，若不在则单独给它补一次票价后
         插入 candidates 第 1 位（保证推荐车次始终有真实票价，前端可见）。
         """
-        _MAX_DISPLAY = 10
+        _MAX_DISPLAY = 4
         recs: list[TrainRecommendation] = []
         for direction, frm, to, date in (
             (f"去程：{request.origin_city}→{request.city}", request.origin_city, request.city, request.start_date),
             (f"返程：{request.city}→{request.origin_city}", request.city, request.origin_city, request.end_date),
         ):
-            trains = rail_client.search_with_prices(frm, to, date)
+            trains = rail_client.search_with_prices(frm, to, date, max_trains=_MAX_DISPLAY)
             # 复用已查询的 trains，避免 recommend 内部再查一次 12306（风控/延迟）
             best, reason = rail_client.recommend(frm, to, date, trains=trains)
             if best is None:
@@ -626,11 +623,11 @@ class PlannerAgent:
         return recs
 
     @staticmethod
-    def _pick_display_trains(trains: list[dict], best: dict, max_display: int = 10, date: str = "") -> list[dict]:
+    def _pick_display_trains(trains: list[dict], best: dict, max_display: int = 4, date: str = "") -> list[dict]:
         """从 trains 里选最多 max_display 条展示，保证推荐车次在第 1 位。
 
         - 若 best 已在前 max_display 条：移到首位，其余候选保持顺序；
-        - 若不在：单独给 best 补一次真实票价（否则前 10 都没补到 best，价格空缺），
+        - 若不在：单独给 best 补一次真实票价（否则已补价候选中没有 best），
           并把 best 插入第 1 位，整体仍保持 max_display 条。
 
         返回新列表（不会就地修改原 trains）。

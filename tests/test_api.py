@@ -124,6 +124,9 @@ def test_trip_job_returns_before_slow_planner_finishes(monkeypatch):
     running = client.get(f"/api/trip-plan/jobs/{job_id}")
     assert running.status_code == 200
     assert running.json()["status"] in {"pending", "running"}
+    assert running.json()["stage"] in {
+        "等待开始", "正在解析旅行需求", "正在查询景点、天气、酒店与交通",
+    }
 
     release.set()
     for _ in range(20):

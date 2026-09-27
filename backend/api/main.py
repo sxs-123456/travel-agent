@@ -136,23 +136,35 @@ def _clean_expired_jobs() -> None:
 
 def _run_trip_job(job_id: str, payload: NaturalTripRequest) -> None:
     with _job_lock:
-        _jobs[job_id]["status"] = "running"
+        _jobs[job_id].update({"status": "running", "stage": "正在解析旅行需求"})
+
+    def update_stage(stage: str) -> None:
+        with _job_lock:
+            if job_id in _jobs:
+                _jobs[job_id]["stage"] = stage
+
     try:
-        response = create_plan_from_text(payload)
+        response = _create_plan_from_text(payload, update_stage)
         if isinstance(response, JSONResponse):
             body = json.loads(response.body.decode("utf-8"))
             update = {
                 "status": "failed",
+                "stage": "生成失败",
                 "detail": body.get("detail", "行程生成失败，请稍后重试。"),
                 "missing_fields": body.get("missing_fields", []),
                 "http_status": response.status_code,
             }
         else:
-            update = {"status": "complete", "result": response.model_dump(mode="json")}
+            update = {
+                "status": "complete",
+                "stage": "行程已生成",
+                "result": response.model_dump(mode="json"),
+            }
     except Exception as exc:  # noqa: BLE001 - background boundary must retain a result
         logger.exception("后台行程任务失败 job_id=%s", job_id)
         update = {
             "status": "failed",
+            "stage": "生成失败",
             "detail": "行程生成暂时不可用，请稍后重试。",
             "missing_fields": [],
             "http_status": 502,
@@ -184,9 +196,10 @@ def create_plan(request: TripPlanRequest) -> TripPlan:
         return JSONResponse(status_code=status, content={"detail": detail})
 
 
-@app.post("/api/trip-plan/from-text", response_model=NaturalTripResponse)
-def create_plan_from_text(payload: NaturalTripRequest) -> NaturalTripResponse | JSONResponse:
+def _create_plan_from_text(payload: NaturalTripRequest, on_stage=None) -> NaturalTripResponse | JSONResponse:
     """Extract a natural-language request and run the existing planner."""
+    if on_stage:
+        on_stage("正在解析旅行需求")
     intent_tracker = LlmUsageTracker()
     token = current_llm_usage_tracker.set(intent_tracker)
     try:
@@ -213,6 +226,8 @@ def create_plan_from_text(payload: NaturalTripRequest) -> NaturalTripResponse | 
         return JSONResponse(status_code=status, content={"detail": detail})
     finally:
         current_llm_usage_tracker.reset(token)
+    if on_stage:
+        on_stage("正在查询景点、天气、酒店与交通")
     result = create_plan(request)
     if isinstance(result, JSONResponse):
         return result
@@ -232,7 +247,14 @@ def create_plan_from_text(payload: NaturalTripRequest) -> NaturalTripResponse | 
             metrics.estimated_cost_usd = round(
                 (metrics.estimated_cost_usd or 0) + intent_usage["estimated_cost_usd"], 6
             )
+    if on_stage:
+        on_stage("正在整理行程与预算")
     return NaturalTripResponse(request=request, plan=result)
+
+
+@app.post("/api/trip-plan/from-text", response_model=NaturalTripResponse)
+def create_plan_from_text(payload: NaturalTripRequest) -> NaturalTripResponse | JSONResponse:
+    return _create_plan_from_text(payload)
 
 
 @app.post("/api/trip-plan/jobs", status_code=202)
@@ -241,7 +263,11 @@ def create_trip_job(payload: NaturalTripRequest) -> dict[str, str]:
     _clean_expired_jobs()
     job_id = uuid4().hex
     with _job_lock:
-        _jobs[job_id] = {"status": "pending", "created_at": time()}
+        _jobs[job_id] = {
+            "status": "pending",
+            "stage": "等待开始",
+            "created_at": time(),
+        }
     _job_executor.submit(_run_trip_job, job_id, payload.model_copy(deep=True))
     return {"job_id": job_id, "status": "pending"}
 

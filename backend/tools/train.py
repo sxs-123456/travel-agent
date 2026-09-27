@@ -233,7 +233,7 @@ class TrainTicketProvider:
 
     def search_with_prices(
         self, frm: str, to: str, date: str, preferred_seat: str = "二等座",
-        max_trains: int = 10,
+        max_trains: int = 4,
     ) -> list[dict[str, Any]]:
         """查询车次列表并为每班车补充真实票价（按席别）。
 

@@ -24,9 +24,6 @@ class Settings:
             os.getenv("LLM_OUTPUT_COST_PER_1M_USD", "0")
         )
         self.amap_api_key: str = os.getenv("AMAP_API_KEY", "")
-        self.use_amap_driving_route: bool = os.getenv(
-            "USE_AMAP_DRIVING_ROUTE", "true"
-        ).lower() in ("1", "true", "yes", "on")
         # Pexels 免费图库（封面图首选，选填）：留空则跳过、自动落到 Openverse 兜底，
         # 不影响「免 key 也能跑」。
         self.pexels_api_key: str = os.getenv("PEXELS_API_KEY", "")

@@ -29,8 +29,10 @@ export class TripRequestError extends Error {
 /** Convert natural language plus optional date-picker values into a validated plan. */
 export async function createTripPlanFromText(
   query: string,
-  dates?: { startDate?: string; endDate?: string }
+  dates?: { startDate?: string; endDate?: string },
+  onProgress?: (stage: string) => void
 ): Promise<NaturalTripResponse> {
+  onProgress?.("正在提交旅行需求");
   const resp = await fetch(`${API_BASE}/api/trip-plan/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -62,6 +64,7 @@ export async function createTripPlanFromText(
       throw new TripRequestError(await extractDetail(statusResp));
     }
     const job = await statusResp.json();
+    if (typeof job.stage === "string" && job.stage) onProgress?.(job.stage);
     if (job.status === "complete") return job.result as NaturalTripResponse;
     if (job.status === "failed") {
       throw new TripRequestError(
