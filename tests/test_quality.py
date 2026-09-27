@@ -257,6 +257,38 @@ def test_route_optimizer_orders_nearest_first_and_records_distance(monkeypatch):
     assert "具体路线见公交/地铁出行攻略" in day.notes
 
 
+def test_prepare_replaces_remote_poi_with_grounded_nearby_candidate():
+    from backend.agents.planner import PlannerAgent
+    from backend.models.trip import Hotel
+
+    hotel = Hotel(
+        source_id="hotel", name="市中心酒店",
+        location=Location(longitude=120.0, latitude=30.0),
+    )
+    remote = Attraction(
+        source_id="remote", name="远郊景点",
+        location=Location(longitude=121.5, latitude=30.0),
+    )
+    nearby = Attraction(
+        source_id="nearby", name="市区景点",
+        location=Location(longitude=120.05, latitude=30.0),
+    )
+    nearby_two = Attraction(
+        source_id="nearby-2", name="城市博物馆",
+        location=Location(longitude=120.08, latitude=30.0),
+    )
+    candidate = TripPlan(
+        city="杭州", start_date="2026-10-01", end_date="2026-10-02",
+        days=[
+            DayPlan(day=1, date="2026-10-01", attractions=[remote], hotel=hotel),
+            DayPlan(day=2, date="2026-10-02", attractions=[nearby]),
+        ],
+    )
+    PlannerAgent().prepare_plan(candidate, request(), [remote, nearby, nearby_two], [hotel])
+    assert candidate.days[0].attractions[0].source_id == "nearby"
+    assert candidate.days[0].route_distance_km < 30
+
+
 def test_transit_routes_are_queried_in_parallel(monkeypatch):
     import time
     import backend.agents.planner as planner_module

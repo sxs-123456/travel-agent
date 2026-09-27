@@ -49,7 +49,14 @@ def main() -> None:
             try:
                 response = client.post("/api/trip-plan", json=request.model_dump())
                 latency = (perf_counter() - started) * 1000
-                response.raise_for_status()
+                if response.is_error:
+                    try:
+                        detail = response.json().get("detail")
+                    except Exception:
+                        detail = response.text[:300]
+                    raise RuntimeError(
+                        f"HTTP {response.status_code}: {detail or 'unknown error'}"
+                    )
                 plan = TripPlan.model_validate(response.json())
                 record = {
                     "name": case["name"],

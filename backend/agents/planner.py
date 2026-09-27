@@ -529,8 +529,54 @@ class PlannerAgent:
         self._fill_empty_days(plan, attractions)
         self._strip_return_day_hotel(plan, request)
         hotel = self._apply_single_hotel(plan, hotels)
+        self._replace_route_outliers(plan, attractions, hotel)
         self._optimize_routes(plan)
         return hotel
+
+    @classmethod
+    def _replace_route_outliers(
+        cls, plan: TripPlan, candidates: list[Attraction], hotel: Hotel | None
+    ) -> None:
+        """Keep each day geographically coherent using verified candidates only."""
+        used_ids: set[str] = set()
+        for day in plan.days:
+            original = list(day.attractions)
+            if not original:
+                continue
+            anchor = hotel.location if hotel else original[0].location
+            target_count = min(3, max(1, len(original)))
+            kept: list[Attraction] = []
+            for item in original:
+                if not item.source_id or item.source_id in used_ids:
+                    continue
+                if cls._haversine_km(anchor, item.location) > 30:
+                    continue
+                if kept and cls._haversine_km(kept[-1].location, item.location) > 40:
+                    continue
+                kept.append(item)
+                used_ids.add(item.source_id)
+
+            pool = sorted(
+                (
+                    item for item in candidates
+                    if item.source_id and item.source_id not in used_ids
+                    and cls._haversine_km(anchor, item.location) <= 30
+                ),
+                key=lambda item: cls._haversine_km(anchor, item.location),
+            )
+            for item in pool:
+                if len(kept) >= target_count:
+                    break
+                if any(_same_scenic_area(_norm_name(item.name), _norm_name(x.name)) for x in kept):
+                    continue
+                kept.append(item.model_copy(deep=True))
+                used_ids.add(item.source_id)
+            if [item.source_id for item in kept] != [item.source_id for item in original]:
+                day.notes = (
+                    (day.notes + "；" if day.notes else "")
+                    + "系统按真实坐标移除超远景点，并从已验证候选中就近补位"
+                )
+            day.attractions = kept
 
     def enrich_routes(self, plan: TripPlan) -> TripPlan:
         """Attach real AMap transit routes, with deterministic distance fallback."""
