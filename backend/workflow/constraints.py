@@ -89,7 +89,8 @@ class ConstraintChecker:
             )
             return ConstraintReport(
                 passed=False, violations=[violation], grounded_poi_rate=0,
-                constraint_satisfaction_rate=0, duplicate_rate=0, hallucination_rate=1,
+                constraint_satisfaction_rate=0, duplicate_rate=0,
+                ungrounded_attraction_rate=1,
             )
 
         request, plan = state.request, state.plan
@@ -219,14 +220,14 @@ class ConstraintChecker:
         checks = 8 + len(planned)
         grounded_rate = len(grounded) / len(planned) if planned else 0.0
         duplicate_rate = duplicate_count / len(planned) if planned else 0.0
-        hallucination_rate = len(unknown) / len(planned) if planned else 1.0
+        ungrounded_attraction_rate = len(unknown) / len(planned) if planned else 1.0
         return ConstraintReport(
             passed=not errors,
             violations=violations,
             grounded_poi_rate=round(grounded_rate, 4),
             constraint_satisfaction_rate=round(max(0, checks - len(errors)) / checks, 4),
             duplicate_rate=round(duplicate_rate, 4),
-            hallucination_rate=round(hallucination_rate, 4),
+            ungrounded_attraction_rate=round(ungrounded_attraction_rate, 4),
         )
 
     @staticmethod

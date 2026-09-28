@@ -3,7 +3,7 @@ from __future__ import annotations
 from time import sleep
 
 from backend.evaluation import summarize
-from backend.models.agent import ToolStatus
+from backend.models.agent import ConstraintReport, ToolStatus
 from backend.models.trip import Attraction, Budget, DayPlan, Location, TripPlan, TripPlanRequest
 from backend.workflow.constraints import ConstraintChecker
 from backend.workflow.nodes import NodeRunner, WorkflowNode
@@ -53,7 +53,7 @@ def test_constraint_checker_rejects_ungrounded_duplicates_and_hard_constraint():
         "ungrounded_poi", "duplicate_attraction", "hard_constraint_forbidden_place"
     }
     assert report.grounded_poi_rate == 0.75
-    assert report.hallucination_rate == 0.25
+    assert report.ungrounded_attraction_rate == 0.25
 
 
 def test_constraint_checker_accepts_grounded_consistent_plan():
@@ -133,14 +133,29 @@ def test_evaluation_summarizes_agent_specific_metrics():
             "constraint_report": {
                 "passed": True, "grounded_poi_rate": 1,
                 "constraint_satisfaction_rate": 0.9,
-                "duplicate_rate": 0.1, "hallucination_rate": 0,
+                "duplicate_rate": 0.1, "ungrounded_attraction_rate": 0,
             },
         },
     }
     result = summarize([record])
-    assert result["task_success_rate"] == 1
+    assert result["fixed_case_pass_rate"] == 1
     assert result["tool_call_success_rate"] == 0.9
     assert result["retry_rate"] == 0.1
     assert result["fallback_rate"] == 0.2
     assert result["grounded_poi_rate"] == 1
+    assert result["ungrounded_attraction_rate"] == 0
+
+
+def test_constraint_report_reads_legacy_metric_name_but_serializes_precise_name():
+    report = ConstraintReport.model_validate({
+        "passed": True,
+        "grounded_poi_rate": 1,
+        "constraint_satisfaction_rate": 1,
+        "duplicate_rate": 0,
+        "hallucination_rate": 0,
+    })
+    payload = report.model_dump()
+    assert report.ungrounded_attraction_rate == 0
+    assert "ungrounded_attraction_rate" in payload
+    assert "hallucination_rate" not in payload
 

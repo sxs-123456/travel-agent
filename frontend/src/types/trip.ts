@@ -132,7 +132,7 @@ export interface WorkflowMetrics {
     grounded_poi_rate: number;
     constraint_satisfaction_rate: number;
     duplicate_rate: number;
-    hallucination_rate: number;
+    ungrounded_attraction_rate: number;
   } | null;
 }
 

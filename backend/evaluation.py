@@ -48,7 +48,7 @@ def summarize(records: list[dict]) -> dict:
         "total_cases": total,
         "successful_cases": len(successful),
         "success_rate": round(len(successful) / total, 4) if total else 0.0,
-        "task_success_rate": round(task_successes / total, 4) if total else 0.0,
+        "fixed_case_pass_rate": round(task_successes / total, 4) if total else 0.0,
         "grounded_poi_rate": (
             round(mean(item.get("grounded_poi_rate", 0) for item in constraint_reports), 4)
             if constraint_reports else 0.0
@@ -64,8 +64,14 @@ def summarize(records: list[dict]) -> dict:
             round(mean(item.get("duplicate_rate", 0) for item in constraint_reports), 4)
             if constraint_reports else 0.0
         ),
-        "hallucination_rate": (
-            round(mean(item.get("hallucination_rate", 0) for item in constraint_reports), 4)
+        "ungrounded_attraction_rate": (
+            round(mean(
+                item.get(
+                    "ungrounded_attraction_rate",
+                    item.get("hallucination_rate", 0),
+                )
+                for item in constraint_reports
+            ), 4)
             if constraint_reports else 0.0
         ),
         "retry_rate": round(retries / tool_calls, 4) if tool_calls else 0.0,

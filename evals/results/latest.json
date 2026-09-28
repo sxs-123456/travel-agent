@@ -3,12 +3,12 @@
     "total_cases": 12,
     "successful_cases": 12,
     "success_rate": 1.0,
-    "task_success_rate": 1.0,
+    "fixed_case_pass_rate": 1.0,
     "grounded_poi_rate": 1.0,
     "constraint_satisfaction_rate": 1.0,
     "tool_call_success_rate": 1.0,
     "duplicate_rate": 0.0,
-    "hallucination_rate": 0.0,
+    "ungrounded_attraction_rate": 0.0,
     "retry_rate": 0.0,
     "fallback_rate": 0.0,
     "quality_pass_rate": 1.0,
@@ -65,7 +65,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -217,7 +217,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -369,7 +369,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -521,7 +521,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -673,7 +673,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -825,7 +825,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -977,7 +977,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -1138,7 +1138,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -1290,7 +1290,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -1451,7 +1451,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -1612,7 +1612,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {
@@ -1764,7 +1764,7 @@
           "grounded_poi_rate": 1.0,
           "constraint_satisfaction_rate": 1.0,
           "duplicate_rate": 0.0,
-          "hallucination_rate": 0.0
+          "ungrounded_attraction_rate": 0.0
         },
         "traces": [
           {

@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Generic, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class ToolStatus(str, Enum):
@@ -84,7 +84,14 @@ class ConstraintReport(BaseModel):
     grounded_poi_rate: float = Field(ge=0, le=1)
     constraint_satisfaction_rate: float = Field(ge=0, le=1)
     duplicate_rate: float = Field(ge=0, le=1)
-    hallucination_rate: float = Field(ge=0, le=1)
+    ungrounded_attraction_rate: float = Field(
+        ge=0,
+        le=1,
+        validation_alias=AliasChoices(
+            "ungrounded_attraction_rate", "hallucination_rate"
+        ),
+        description="规划景点中无法关联真实候选来源 ID 的比例，不代表整段回答的幻觉率",
+    )
 
     @property
     def retryable_messages(self) -> list[str]:
